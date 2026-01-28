@@ -34,14 +34,32 @@ export default function Login() {
           <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl mb-4">
             BS
           </div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Welcome back</h1>
-          <p className="text-muted-foreground">Enter your credentials to access the portal</p>
+          <h1 className="text-3xl font-heading font-bold tracking-tight">Portal Access</h1>
+          <p className="text-muted-foreground">Select your portal and enter credentials</p>
         </div>
 
         <Card className="border-none shadow-lg">
           <CardHeader>
+            <div className="flex items-center justify-between mb-4 bg-muted p-1 rounded-lg">
+              <Button 
+                variant={email.includes("admin") ? "default" : "ghost"} 
+                className="flex-1 text-xs" 
+                size="sm"
+                onClick={() => setEmail("admin@balibad.store")}
+              >
+                Admin Portal
+              </Button>
+              <Button 
+                variant={!email.includes("admin") ? "default" : "ghost"} 
+                className="flex-1 text-xs" 
+                size="sm"
+                onClick={() => setEmail("staff@balibad.store")}
+              >
+                Staff Portal
+              </Button>
+            </div>
             <CardTitle>Sign In</CardTitle>
-            <CardDescription>Use your company email to login</CardDescription>
+            <CardDescription>Enter your credentials to access your dashboard</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -74,9 +92,12 @@ export default function Login() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-center border-t p-4 bg-muted/20">
-            <p className="text-xs text-muted-foreground">
-              Protected by enterprise-grade security encryption
+          <CardFooter className="flex flex-col gap-4 border-t p-4 bg-muted/20 text-center">
+            <p className="text-sm text-muted-foreground">
+              New staff member? <Link href="/register" className="text-primary hover:underline font-medium">Create staff account</Link>
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              Secure Enterprise Portal
             </p>
           </CardFooter>
         </Card>
