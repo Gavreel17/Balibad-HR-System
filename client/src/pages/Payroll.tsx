@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Download, Printer, DollarSign } from "lucide-react";
+import { Download, Printer, Coins } from "lucide-react";
 import { db } from "@/lib/db";
 
 export default function Payroll() {
@@ -23,7 +23,7 @@ export default function Payroll() {
               Print Payslips
             </Button>
             <Button>
-              <DollarSign className="mr-2 h-4 w-4" />
+              <Coins className="mr-2 h-4 w-4" />
               Run Payroll
             </Button>
           </div>
@@ -35,7 +35,7 @@ export default function Payroll() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Payroll Cost</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$142,500.00</div>
+              <div className="text-2xl font-bold">₱142,500.00</div>
               <p className="text-xs text-muted-foreground">Monthly recurrence</p>
             </CardContent>
           </Card>
@@ -80,7 +80,7 @@ export default function Payroll() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.department}</TableCell>
-                    <TableCell>${user.salary.toLocaleString()}/yr</TableCell>
+                    <TableCell>₱{user.salary.toLocaleString()}/yr</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Active
