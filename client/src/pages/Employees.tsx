@@ -10,12 +10,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Filter, MoreHorizontal, Download } from "lucide-react";
-import { db, User } from "@/lib/db";
+import { db, User, UserRole } from "@/lib/db";
 
 export default function Employees() {
   const [users, setUsers] = useState(db.getUsers());
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({
+    name: '',
+    email: '',
+    role: '',
+    branch: ''
+  });
+
+  const handleAddEmployee = () => {
+    if (newEmployee.name && newEmployee.email && newEmployee.role && newEmployee.branch) {
+      const employee: User = {
+        id: `u${Date.now()}`,
+        name: newEmployee.name,
+        email: newEmployee.email,
+        role: newEmployee.role as UserRole,
+        department: 'General', // default
+        position: 'Employee', // default
+        joinDate: new Date().toISOString().split('T')[0],
+        salary: 30000, // default
+        status: 'active',
+        branch: newEmployee.branch
+      };
+      db.addUser(employee);
+      setUsers(db.getUsers());
+      setNewEmployee({ name: '', email: '', role: '', branch: '' });
+      setIsAddDialogOpen(false);
+    }
+  };
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,15 +77,15 @@ export default function Employees() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" className="col-span-3" placeholder="John Doe" />
+                    <Input id="name" className="col-span-3" placeholder="John Doe" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input id="email" className="col-span-3" placeholder="john@company.com" />
+                    <Input id="email" className="col-span-3" placeholder="john@company.com" value={newEmployee.email} onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="role" className="text-right">Role</Label>
-                    <Select>
+                    <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({...newEmployee, role: value})}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
@@ -69,9 +96,21 @@ export default function Employees() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="branch" className="text-right">Branch</Label>
+                    <Select value={newEmployee.branch} onValueChange={(value) => setNewEmployee({...newEmployee, branch: value})}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Dimataling">Dimataling</SelectItem>
+                        <SelectItem value="Tabina">Tabina</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" onClick={() => setIsAddDialogOpen(false)}>Save Employee</Button>
+                  <Button type="submit" onClick={handleAddEmployee}>Save Employee</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -107,6 +146,7 @@ export default function Employees() {
                   <TableHead>Department</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Join Date</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -137,6 +177,7 @@ export default function Employees() {
                       </Badge>
                     </TableCell>
                     <TableCell>{user.joinDate}</TableCell>
+                    <TableCell>{user.branch}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon">
                         <MoreHorizontal className="h-4 w-4" />

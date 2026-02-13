@@ -13,6 +13,7 @@ export interface User {
   joinDate: string;
   salary: number;
   status: 'active' | 'on_leave' | 'terminated';
+  branch: string;
 }
 
 export interface Attendance {
@@ -45,7 +46,8 @@ const MOCK_USERS: User[] = [
     position: 'General Manager',
     joinDate: '2023-01-15',
     salary: 85000,
-    status: 'active'
+    status: 'active',
+    branch: 'Dimataling'
   },
   {
     id: 'u2',
@@ -56,7 +58,8 @@ const MOCK_USERS: User[] = [
     position: 'HR Manager',
     joinDate: '2023-03-10',
     salary: 65000,
-    status: 'active'
+    status: 'active',
+    branch: 'Tabina'
   },
   {
     id: 'u3',
@@ -67,7 +70,8 @@ const MOCK_USERS: User[] = [
     position: 'Senior Sales Associate',
     joinDate: '2023-06-01',
     salary: 42000,
-    status: 'active'
+    status: 'active',
+    branch: 'Dimataling'
   },
   {
     id: 'u4',
@@ -78,7 +82,8 @@ const MOCK_USERS: User[] = [
     position: 'Stock Clerk',
     joinDate: '2023-08-15',
     salary: 38000,
-    status: 'active'
+    status: 'active',
+    branch: 'Tabina'
   },
   {
     id: 'u5',
@@ -89,7 +94,8 @@ const MOCK_USERS: User[] = [
     position: 'Sales Associate',
     joinDate: '2023-11-20',
     salary: 35000,
-    status: 'on_leave'
+    status: 'on_leave',
+    branch: 'Dimataling'
   }
 ];
 
