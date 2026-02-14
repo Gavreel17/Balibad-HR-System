@@ -10,6 +10,10 @@ import Dashboard from "@/pages/Dashboard";
 import Employees from "@/pages/Employees";
 import Documents from "@/pages/Documents";
 import Payroll from "@/pages/Payroll";
+import Attendance from "@/pages/Attendance";
+import CashAdvances from "@/pages/CashAdvances";
+import Reports from "@/pages/Reports";
+import Settings from "@/pages/Settings";
 
 function Router() {
   return (
@@ -20,13 +24,13 @@ function Router() {
       <Route path="/employees" component={Employees} />
       <Route path="/documents" component={Documents} />
       <Route path="/payroll" component={Payroll} />
-      
+
       {/* Placeholder pages for routes that don't have dedicated files yet */}
-      <Route path="/attendance">{(params) => <Dashboard />}</Route>
-      <Route path="/leave">{(params) => <Dashboard />}</Route>
-      <Route path="/reports">{(params) => <Dashboard />}</Route>
-      <Route path="/settings">{(params) => <Dashboard />}</Route>
-      
+      <Route path="/attendance" component={Attendance} />
+      <Route path="/cash-advances" component={CashAdvances} />
+      <Route path="/reports" component={Reports} />
+      <Route path="/settings" component={Settings} />
+
       <Route component={NotFound} />
     </Switch>
   );

@@ -17,7 +17,7 @@ export default function Register() {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     setTimeout(() => {
       const newUser = {
         id: Math.random().toString(36).substr(2, 9),
@@ -28,9 +28,10 @@ export default function Register() {
         position: 'Staff',
         joinDate: new Date().toISOString().split('T')[0],
         salary: 30000,
-        status: 'active' as const
+        status: 'active' as const,
+        branch: 'Dimataling' // Default branch for new registrations
       };
-      
+
       db.addUser(newUser);
       toast({
         title: "Registration Successful",
@@ -61,33 +62,33 @@ export default function Register() {
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  placeholder="John Doe" 
+                <Input
+                  id="name"
+                  placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required 
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required 
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
+                <Input
+                  id="password"
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required 
+                  required
                 />
               </div>
               <Button className="w-full" type="submit" disabled={isLoading}>

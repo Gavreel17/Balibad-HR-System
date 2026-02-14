@@ -1,13 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  FileText, 
-  Calendar, 
-  Settings, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  Users,
+  Banknote,
+  FileText,
+  Calendar,
+  Settings,
+  LogOut,
   PieChart,
   DollarSign
 } from "lucide-react";
@@ -17,7 +17,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Users, label: "Employees", href: "/employees" },
   { icon: Calendar, label: "Attendance", href: "/attendance" },
-  { icon: Briefcase, label: "Leave Requests", href: "/leave" },
+  { icon: Banknote, label: "Cash Advances", href: "/cash-advances" },
   { icon: DollarSign, label: "Payroll", href: "/payroll" },
   { icon: FileText, label: "Documents", href: "/documents" },
   { icon: PieChart, label: "Reports", href: "/reports" },
@@ -31,8 +31,8 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-sidebar text-sidebar-foreground transition-transform">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
         <div className="flex items-center gap-2 font-heading font-bold text-xl tracking-tight">
-          <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground">
-            BS
+          <div className="h-8 w-8 flex items-center justify-center">
+            <img src={logo} alt="Logo" className="h-full w-full object-contain" />
           </div>
           <span>BALIBAD STORE</span>
         </div>
