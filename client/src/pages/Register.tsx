@@ -35,7 +35,8 @@ export default function Register() {
         joinDate: new Date().toISOString().split('T')[0],
         salary: role === 'admin' ? 80000 : 30000,
         status: 'active' as const,
-        branch: 'Dimataling'
+        branch: 'Dimataling',
+        isEmployee: false
       };
 
       db.addUser(newUser);

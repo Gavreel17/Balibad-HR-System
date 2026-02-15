@@ -16,6 +16,7 @@ export interface User {
   branch: string;
   address?: string;
   contactNumber?: string;
+  isEmployee: boolean;
 }
 
 export interface Attendance {
@@ -79,7 +80,8 @@ const MOCK_USERS: User[] = [
     status: 'active',
     branch: 'Dimataling',
     address: 'Dimataling, Zamboanga del Sur',
-    contactNumber: '09123456789'
+    contactNumber: '09123456789',
+    isEmployee: true
   },
   {
     id: '002',
@@ -93,7 +95,8 @@ const MOCK_USERS: User[] = [
     status: 'active',
     branch: 'Tabina',
     address: 'Tabina, Zamboanga del Sur',
-    contactNumber: '09234567890'
+    contactNumber: '09234567890',
+    isEmployee: true
   },
   {
     id: '003',
@@ -107,7 +110,8 @@ const MOCK_USERS: User[] = [
     status: 'active',
     branch: 'Dimataling',
     address: 'Dimataling ZDS',
-    contactNumber: '09345678901'
+    contactNumber: '09345678901',
+    isEmployee: true
   },
   {
     id: '004',
@@ -121,7 +125,8 @@ const MOCK_USERS: User[] = [
     status: 'active',
     branch: 'Tabina',
     address: 'Tabina ZDS',
-    contactNumber: '09456789012'
+    contactNumber: '09456789012',
+    isEmployee: true
   },
   {
     id: '005',
@@ -135,7 +140,8 @@ const MOCK_USERS: User[] = [
     status: 'on_leave',
     branch: 'Dimataling',
     address: 'Dimataling ZDS',
-    contactNumber: '09567890123'
+    contactNumber: '09567890123',
+    isEmployee: true
   }
 ];
 
@@ -144,6 +150,9 @@ const MOCK_ATTENDANCE: Attendance[] = [
   { id: 'a2', userId: '004', date: '2024-05-20', timeIn: '09:10 AM', timeOut: '05:05 PM', status: 'late' },
   { id: 'a3', userId: '003', date: '2024-05-21', timeIn: '08:50 AM', timeOut: '05:02 PM', status: 'present' },
   { id: 'a4', userId: '004', date: '2024-05-21', timeIn: '08:58 AM', timeOut: '05:00 PM', status: 'present' },
+  { id: 'a5', userId: '003', date: '2026-02-10', timeIn: '-', status: 'absent' },
+  { id: 'a6', userId: '004', date: '2026-02-10', timeIn: '-', status: 'absent' },
+  { id: 'a7', userId: '003', date: '2026-02-12', timeIn: '-', status: 'absent' },
 ];
 
 const MOCK_LEAVE: LeaveRequest[] = [
@@ -305,7 +314,7 @@ class DataManager {
   getDashboardStats() {
     const today = new Date().toISOString().split('T')[0];
     return {
-      totalEmployees: this.users.filter(u => u.status === 'active').length,
+      totalEmployees: this.users.filter(u => u.isEmployee && u.status === 'active').length,
       onTimeToday: this.attendance.filter(a => a.date === today && a.status === 'present').length,
       lateToday: this.attendance.filter(a => a.date === today && a.status === 'late').length,
       pendingAdvances: this.cashAdvances.filter(ca => ca.status === 'pending').length,
@@ -329,7 +338,7 @@ class DataManager {
 
   getBranchDistribution() {
     const branches: Record<string, number> = {};
-    this.users.forEach(u => {
+    this.users.filter(u => u.isEmployee).forEach(u => {
       branches[u.branch] = (branches[u.branch] || 0) + 1;
     });
     return Object.entries(branches).map(([name, value]) => ({ name, value }));

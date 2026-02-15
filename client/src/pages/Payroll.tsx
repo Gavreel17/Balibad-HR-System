@@ -19,10 +19,13 @@ export default function Payroll() {
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [selectedPayslip, setSelectedPayslip] = useState<User | null>(null);
+  const [isBatchPrinting, setIsBatchPrinting] = useState(false);
 
   const users = db.getUsers().filter(u => u.status === 'active');
   const cashAdvances = db.getCashAdvanceRequests();
   const currentUser = db.getCurrentUser();
+
+  if (!currentUser) return null;
 
   // Helper Calculations
   const calcMonthlyGross = (annual: number) => annual / 12;
@@ -33,13 +36,26 @@ export default function Payroll() {
       .reduce((total, adv) => total + adv.amount, 0);
   };
 
+  const getAbsenceDeduction = (userId: string, salary: number) => {
+    const currentMonthPrefix = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+    const absences = db.getAttendance().filter(a =>
+      a.userId === userId &&
+      a.status === 'absent' &&
+      a.date.startsWith(currentMonthPrefix)
+    ).length;
+    const monthlySalary = salary / 12;
+    const dailyRate = monthlySalary / 22; // Assuming 22 work days/month
+    return absences * dailyRate;
+  };
+
   const calculateFullPayrollData = (user: User) => {
     const gross = calcMonthlyGross(user.salary);
     const advance = getCashAdvanceDeduction(user.id);
-    const totalDeductions = advance;
+    const absences = getAbsenceDeduction(user.id, user.salary);
+    const totalDeductions = advance + absences;
     const net = gross - totalDeductions;
 
-    return { gross, advance, totalDeductions, net };
+    return { gross, advance, absences, totalDeductions, net };
   };
 
   const filteredUsers = users.filter(user => {
@@ -80,6 +96,76 @@ export default function Payroll() {
     });
   };
 
+  const handlePrint = (userId: string) => {
+    // For prototype, we'll trigger a browser print
+    // In a real app, this might target a specific hidden printable frame
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    MySwal.fire({
+      title: 'Preparing Print...',
+      text: `Formatting payslip for ${user.name}`,
+      icon: 'info',
+      timer: 1500,
+      showConfirmButton: false,
+      didOpen: () => {
+        MySwal.showLoading();
+      }
+    }).then(() => {
+      window.print();
+    });
+  };
+
+  const handleDownloadPDF = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    MySwal.fire({
+      title: 'Generating PDF...',
+      text: 'Compiling electronic payroll record...',
+      icon: 'info',
+      timer: 2000,
+      showConfirmButton: false,
+      didOpen: () => {
+        MySwal.showLoading();
+      }
+    }).then(() => {
+      MySwal.fire({
+        title: 'PDF Downloaded',
+        text: `PAYSLIP_FEB2026_${user.id}.pdf has been saved.`,
+        icon: 'success'
+      });
+    });
+  };
+
+  const handleBatchPrint = () => {
+    MySwal.fire({
+      title: 'Initialize Batch Print?',
+      text: `This will generate payslips for all ${filteredUsers.length} filtered employees.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Start Printing',
+      confirmButtonColor: '#10b981'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setIsBatchPrinting(true);
+        MySwal.fire({
+          title: 'Processing Batch...',
+          html: '<div className="flex flex-col gap-2">Generating printable manifests...</div>',
+          didOpen: () => {
+            MySwal.showLoading();
+          }
+        });
+
+        setTimeout(() => {
+          setIsBatchPrinting(false);
+          window.print();
+          MySwal.fire('Success', 'Batch print command sent to printer queue.', 'success');
+        }, 2000);
+      }
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -89,7 +175,7 @@ export default function Payroll() {
             <p className="text-muted-foreground">Manage organizational salaries, tax logic, and disbursements.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="shadow-sm border-primary/20 hover:bg-primary/5">
+            <Button onClick={handleBatchPrint} variant="outline" className="shadow-sm border-primary/20 hover:bg-primary/5">
               <Printer className="mr-2 h-4 w-4" />
               Batch Print
             </Button>
@@ -121,7 +207,7 @@ export default function Payroll() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">₱{totalDeductions.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">Cash Advance Repayments</p>
+              <p className="text-xs text-muted-foreground mt-1">Advances & Absences</p>
             </CardContent>
           </Card>
           <Card className="border-none shadow-premium bg-gradient-to-br from-green-500/10 to-green-600/5">
@@ -279,12 +365,19 @@ export default function Payroll() {
                     <TrendingDown className="h-4 w-4" /> Deductions
                   </h4>
                   <div className="space-y-2 text-sm">
-                    {getCashAdvanceDeduction(selectedPayslip.id) > 0 ? (
+                    {getCashAdvanceDeduction(selectedPayslip.id) > 0 && (
                       <div className="flex justify-between font-medium text-red-500">
                         <span>Cash Advance Repayment</span>
                         <span className="font-mono">-₱{getCashAdvanceDeduction(selectedPayslip.id).toLocaleString()}</span>
                       </div>
-                    ) : (
+                    )}
+                    {getAbsenceDeduction(selectedPayslip.id, selectedPayslip.salary) > 0 && (
+                      <div className="flex justify-between font-medium text-red-500">
+                        <span>Absence Deductions ({db.getAttendance().filter(a => a.userId === selectedPayslip.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
+                        <span className="font-mono">-₱{getAbsenceDeduction(selectedPayslip.id, selectedPayslip.salary).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {getCashAdvanceDeduction(selectedPayslip.id) === 0 && getAbsenceDeduction(selectedPayslip.id, selectedPayslip.salary) === 0 && (
                       <p className="text-xs text-muted-foreground italic">No deductions for this period.</p>
                     )}
                   </div>
@@ -299,11 +392,11 @@ export default function Payroll() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4">
-                  <Button variant="outline" size="sm">
+                <div className="flex gap-2 justify-end pt-4 no-print">
+                  <Button variant="outline" size="sm" onClick={() => handlePrint(selectedPayslip.id)}>
                     <Printer className="mr-2 h-4 w-4" /> Print
                   </Button>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => handleDownloadPDF(selectedPayslip.id)}>
                     <Download className="mr-2 h-4 w-4" /> Download PDF
                   </Button>
                 </div>
@@ -312,6 +405,96 @@ export default function Payroll() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Printable Content for Batch Printing */}
+      <div id="printable-area" className="hidden-print-area">
+        {isBatchPrinting && filteredUsers.map(user => {
+          const data = calculateFullPayrollData(user);
+          return (
+            <div key={user.id} className="printable-payslip p-12 border-b-2 border-dashed border-gray-300 page-break">
+              <div className="flex justify-between border-b pb-4 mb-6">
+                <div>
+                  <h1 className="text-3xl font-black uppercase tracking-tighter">BALIBAD STORE</h1>
+                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Electronic Payroll Record</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-muted-foreground uppercase">Period Ending</p>
+                  <p className="text-xl font-bold">Feb 28, 2026</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-8">
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Employee Detail</p>
+                  <p className="text-2xl font-bold">{user.name}</p>
+                  <p className="text-sm font-medium">{user.position} • {user.department}</p>
+                  <p className="text-sm text-muted-foreground">ID: {user.id}</p>
+                </div>
+                <div className="text-right flex flex-col justify-end">
+                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Branch Location</p>
+                  <p className="text-lg font-bold">{user.branch}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="font-medium">Basic Monthly Salary</span>
+                  <span className="font-mono font-bold">₱{data.gross.toLocaleString()}</span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-red-600 uppercase">Deductions</p>
+                  <div className="flex justify-between text-sm">
+                    <span>Cash Advance Repayments</span>
+                    <span className="font-mono">-₱{data.advance.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Absence Deductions ({db.getAttendance().filter(a => a.userId === user.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
+                    <span className="font-mono">-₱{data.absences.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-100 p-6 rounded-xl flex justify-between items-center bg-zinc-100">
+                <span className="text-xl font-black">NET PAYABLE AMOUNT</span>
+                <span className="text-3xl font-black font-mono">₱{data.net.toLocaleString()}</span>
+              </div>
+
+              <div className="mt-12 pt-8 border-t flex justify-between items-center italic text-xs text-muted-foreground">
+                <p>Produced by Balibad Core Systems on {new Date().toLocaleDateString()}</p>
+                <p className="uppercase tracking-widest font-bold">Confidential Record</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .page-break {
+            page-break-after: always;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+        @media screen {
+          #printable-area {
+            display: none;
+          }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }

@@ -14,6 +14,7 @@ import {
 
 export function Header() {
   const currentUser = db.getCurrentUser();
+  if (!currentUser) return null;
   const activities = db.getRecentActivity();
   const unreadCount = activities.length; // For prototype, everything start as unread
 

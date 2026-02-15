@@ -17,6 +17,7 @@ const MySwal = withReactContent(Swal);
 
 export default function CashAdvancesPage() {
     const currentUser = db.getCurrentUser();
+    if (!currentUser) return null;
     const [requests, setRequests] = useState(db.getCashAdvanceRequests());
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newRequest, setNewRequest] = useState({

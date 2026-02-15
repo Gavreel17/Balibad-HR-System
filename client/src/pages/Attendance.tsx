@@ -370,7 +370,7 @@ export default function AttendancePage() {
                                                     <span className="font-mono text-xs font-bold">{record.timeOut}</span>
                                                 </div>
                                             ) : (
-                                                <Badge variant="ghost" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 italic">In Progress</Badge>
+                                                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 italic border-none bg-transparent">In Progress</Badge>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
