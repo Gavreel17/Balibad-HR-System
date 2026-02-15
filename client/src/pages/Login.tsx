@@ -8,8 +8,8 @@ import { db } from "@/lib/db";
 import logo from "@/assets/logo.png";
 
 export default function Login() {
-  const [email, setEmail] = useState("admin@balibad.store");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<'admin' | 'hr' | 'employee'>('admin');
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
@@ -23,6 +23,9 @@ export default function Login() {
       const user = db.login(email, selectedRole);
       if (user) {
         setLocation("/dashboard");
+      } else {
+        // Show error message if user not found with that role/email
+        alert("Invalid credentials for the selected portal. Please check your email and portal selection.");
       }
       setIsLoading(false);
     }, 1000);
@@ -43,23 +46,23 @@ export default function Login() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4 bg-muted p-1 rounded-lg">
               <Button
+                type="button"
                 variant={selectedRole === 'admin' ? "default" : "ghost"}
                 className="flex-1 text-xs"
                 size="sm"
                 onClick={() => {
                   setSelectedRole('admin');
-                  setEmail("admin@balibad.store");
                 }}
               >
                 Admin Portal
               </Button>
               <Button
+                type="button"
                 variant={selectedRole === 'hr' ? "default" : "ghost"}
-                className="flex-1 text-xs"
+                className="flex-1 text-xs font-bold"
                 size="sm"
                 onClick={() => {
                   setSelectedRole('hr');
-                  setEmail("hr@balibad.store");
                 }}
               >
                 Staff Portal
@@ -101,7 +104,7 @@ export default function Login() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4 border-t p-4 bg-muted/20 text-center">
             <p className="text-sm text-muted-foreground">
-              New staff member? <Link href="/register" className="text-primary hover:underline font-medium">Create staff account</Link>
+              Need portal access? <Link href="/register" className="text-primary hover:underline font-bold">Register account</Link>
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
               Secure Enterprise Portal

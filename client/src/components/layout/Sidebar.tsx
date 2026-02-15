@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +14,7 @@ import {
   DollarSign
 } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { db } from "@/lib/db";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -25,7 +28,16 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const currentUser = db.getCurrentUser();
+  const userRole = currentUser?.role || 'employee';
+
+  const filteredNavItems = navItems.filter(item => {
+    if (userRole === 'employee') {
+      return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances'].includes(item.label);
+    }
+    return true;
+  });
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-sidebar text-sidebar-foreground transition-transform">
@@ -40,13 +52,13 @@ export function Sidebar() {
 
       <div className="py-4">
         <nav className="space-y-1 px-2">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = location === item.href;
             return (
               <Link key={item.href} href={item.href}>
                 <a
                   className={cn(
-                    "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
                     isActive
                       ? "bg-sidebar-primary text-sidebar-primary-foreground"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -62,12 +74,17 @@ export function Sidebar() {
       </div>
 
       <div className="absolute bottom-4 left-0 w-full px-4">
-        <Link href="/">
-          <a className="flex w-full items-center gap-2 rounded-md border border-sidebar-border px-4 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </a>
-        </Link>
+        <Button
+          variant="ghost"
+          className="flex w-full items-center justify-start gap-2 rounded-xl border border-sidebar-border/50 px-4 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive group shadow-sm"
+          onClick={() => {
+            db.logout();
+            setLocation("/");
+          }}
+        >
+          <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          <span className="font-bold">Sign Out</span>
+        </Button>
       </div>
     </aside>
   );

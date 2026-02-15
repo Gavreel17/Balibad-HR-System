@@ -47,7 +47,6 @@ export default function Employees() {
         db.updateUser(editingId, {
           name: newEmployee.name,
           email: newEmployee.email,
-          role: 'employee', // Defaulting to employee for updates as requested to remove role management
           department: newEmployee.department,
           branch: newEmployee.branch,
           address: newEmployee.address,
@@ -70,9 +69,9 @@ export default function Employees() {
           id: nextId,
           name: newEmployee.name,
           email: newEmployee.email,
-          role: 'employee',
+          role: newEmployee.role as UserRole || 'employee',
           department: newEmployee.department,
-          position: 'Employee',
+          position: newEmployee.role === 'admin' ? 'System Administrator' : newEmployee.role === 'hr' ? 'HR Manager' : 'Staff Member',
           joinDate: new Date().toISOString().split('T')[0],
           salary: 30000,
           status: newEmployee.status as 'active' | 'on_leave' | 'terminated',
@@ -219,6 +218,19 @@ export default function Employees() {
                         <SelectItem value="Operations">Operations</SelectItem>
                         <SelectItem value="Maintenance">Maintenance</SelectItem>
                         <SelectItem value="General">General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="role" className="text-right">Role</Label>
+                    <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value })}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select portal role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">System Admin</SelectItem>
+                        <SelectItem value="hr">HR Manager</SelectItem>
+                        <SelectItem value="employee">Staff Member</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -15,7 +15,7 @@ export function AttendanceChart({ data }: AttendanceChartProps) {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <XAxis
-              dataKey="name"
+              dataKey="day"
               stroke="#888888"
               fontSize={12}
               tickLine={false}

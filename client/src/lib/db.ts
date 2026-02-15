@@ -176,20 +176,63 @@ class DataManager {
   private documents: Document[] = MOCK_DOCUMENTS;
   private cashAdvances: CashAdvanceRequest[] = MOCK_CASH_ADVANCES;
   private activities: ActivityLog[] = MOCK_ACTIVITIES;
+  private archives: any[] = [];
   private currentUser: User | null = null;
 
+  updateCurrentUser(data: Partial<User>) {
+    if (this.currentUser) {
+      this.currentUser = { ...this.currentUser, ...data };
+      this.users = this.users.map(u => u.id === this.currentUser?.id ? this.currentUser : u);
+      localStorage.setItem('hrms_user', JSON.stringify(this.currentUser));
+    }
+  }
+
+  getArchives() { return this.archives; }
+
+  archiveData(type: string) {
+    let movedCount = 0;
+    if (type === 'attendance') {
+      const oldRecords = this.attendance.filter(a => {
+        const recordDate = new Date(a.date);
+        const threshold = new Date();
+        threshold.setMonth(threshold.getMonth() - 2); // Archive older than 2 months
+        return recordDate < threshold;
+      });
+      this.archives = [...this.archives, ...oldRecords.map(r => ({ ...r, archiveType: 'attendance', archivedAt: new Date().toISOString() }))];
+      this.attendance = this.attendance.filter(a => !oldRecords.includes(a));
+      movedCount = oldRecords.length;
+    }
+    return movedCount;
+  }
+
   login(email: string, role: UserRole) {
-    // For prototype, just finding by role/email to simulate login
-    const user = this.users.find(u => u.email === email || u.role === role);
+    // Strict matching for production feel even in mock
+    const user = this.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.role === role);
     if (user) {
       this.currentUser = user;
+      localStorage.setItem('hrms_user', JSON.stringify(user));
       return user;
     }
     return null;
   }
 
+  logout() {
+    this.currentUser = null;
+    localStorage.removeItem('hrms_user');
+  }
+
   getCurrentUser() {
-    return this.currentUser || this.users[0]; // Fallback to admin for dev
+    if (!this.currentUser) {
+      const saved = localStorage.getItem('hrms_user');
+      if (saved) {
+        try {
+          this.currentUser = JSON.parse(saved);
+        } catch (e) {
+          localStorage.removeItem('hrms_user');
+        }
+      }
+    }
+    return this.currentUser;
   }
 
   getUsers() { return this.users; }
@@ -282,6 +325,23 @@ class DataManager {
 
   getRecentActivity(): ActivityLog[] {
     return this.activities;
+  }
+
+  getBranchDistribution() {
+    const branches: Record<string, number> = {};
+    this.users.forEach(u => {
+      branches[u.branch] = (branches[u.branch] || 0) + 1;
+    });
+    return Object.entries(branches).map(([name, value]) => ({ name, value }));
+  }
+
+  getLeaveBalance(userId: string) {
+    // Mock leave balance data
+    return {
+      total: 15,
+      used: this.leave.filter(l => l.userId === userId && l.status === 'approved').length * 2, // simplified
+      pending: this.leave.filter(l => l.userId === userId && l.status === 'pending').length
+    };
   }
 }
 

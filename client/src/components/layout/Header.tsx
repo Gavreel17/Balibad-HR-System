@@ -74,7 +74,11 @@ export function Header() {
             <p className="text-xs text-muted-foreground">{currentUser.position}</p>
           </div>
           <Avatar>
-            <AvatarFallback>{currentUser.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            {currentUser.avatar ? (
+              <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+            ) : (
+              <AvatarFallback>{currentUser.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            )}
           </Avatar>
         </div>
       </div>

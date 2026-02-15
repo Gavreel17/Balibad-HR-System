@@ -29,7 +29,7 @@ export default function Payroll() {
 
   const getCashAdvanceDeduction = (userId: string) => {
     return cashAdvances
-      .filter(ca => ca.userId === userId && ca.status === 'approved')
+      .filter(ca => ca.userId === userId && (ca.status === 'approved' || ca.status === 'paid'))
       .reduce((total, adv) => total + adv.amount, 0);
   };
 
