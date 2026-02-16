@@ -261,10 +261,7 @@ export default function Employees() {
                     <Label htmlFor="contact" className="text-right">Contact #</Label>
                     <Input id="contact" className="col-span-3" placeholder="09123456789" value={newEmployee.contactNumber} onChange={(e) => setNewEmployee({ ...newEmployee, contactNumber: e.target.value })} />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="position" className="text-right">Position</Label>
-                    <Input id="position" className="col-span-3" placeholder="e.g. Sales Senior" value={newEmployee.position} onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })} />
-                  </div>
+
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="salary" className="text-right">Salary</Label>
                     <Input id="salary" type="number" className="col-span-3" placeholder="30000" value={newEmployee.salary} onChange={(e) => setNewEmployee({ ...newEmployee, salary: e.target.value })} />
@@ -288,19 +285,7 @@ export default function Employees() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">Role</Label>
-                    <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value })}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select portal role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">System Admin</SelectItem>
-                        <SelectItem value="hr">HR Manager</SelectItem>
-                        <SelectItem value="employee">Staff Member</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">Status</Label>
                     <Select value={newEmployee.status} onValueChange={(value) => setNewEmployee({ ...newEmployee, status: value })}>

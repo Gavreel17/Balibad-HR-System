@@ -121,6 +121,7 @@ export default function Register() {
                 </Select>
                 <p className="text-[10px] text-muted-foreground mt-1 italic">Note: Role selection determines your available dashboard features.</p>
               </div>
+
               <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" type="submit" disabled={isLoading}>
                 {isLoading ? "Provisioning Account..." : "Confirm Registration"}
               </Button>
