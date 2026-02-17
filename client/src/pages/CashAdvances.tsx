@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Check, X, Trash } from "lucide-react";
+import { Plus, Check, X, Trash, Users } from "lucide-react";
+import { Link } from "wouter";
 import { db, CashAdvanceRequest, UserRole } from "@/lib/db";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
@@ -141,77 +142,6 @@ export default function CashAdvancesPage() {
                         <h2 className="text-3xl font-heading font-bold tracking-tight">Cash Advances</h2>
                         <p className="text-muted-foreground">Manage cash advance requests.</p>
                     </div>
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Request Advance
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Request Cash Advance</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="name" className="text-right">Name</Label>
-                                    {isAdminOrHR ? (
-                                        <div className="col-span-3">
-                                            <select
-                                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                value={selectedUserId}
-                                                onChange={(e) => handleUserSelect(e.target.value)}
-                                            >
-                                                {db.getUsers().map(u => (
-                                                    <option key={u.id} value={u.id}>{u.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    ) : (
-                                        <Input
-                                            id="name"
-                                            value={currentUser.name}
-                                            disabled
-                                            className="col-span-3 bg-muted"
-                                        />
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="empId" className="text-right">Employee ID</Label>
-                                    <Input
-                                        id="empId"
-                                        value={selectedUser.id}
-                                        disabled
-                                        className="col-span-3 bg-muted"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="amount" className="text-right">Amount</Label>
-                                    <Input
-                                        id="amount"
-                                        type="number"
-                                        className="col-span-3"
-                                        placeholder="e.g. 5000"
-                                        value={newRequest.amount}
-                                        onChange={(e) => setNewRequest({ ...newRequest, amount: e.target.value })}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="purpose" className="text-right">Purpose</Label>
-                                    <Textarea
-                                        id="purpose"
-                                        className="col-span-3"
-                                        placeholder="Reason for cash advance..."
-                                        value={newRequest.purpose}
-                                        onChange={(e) => setNewRequest({ ...newRequest, purpose: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button onClick={handleSubmitRequest}>Submit Request</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
                 </div>
 
                 <Card className="border-none shadow-sm">
@@ -270,7 +200,7 @@ export default function CashAdvancesPage() {
                                                     </Button>
                                                 </div>
                                             )}
-                                            {(!isAdminOrHR || req.status !== 'pending') && req.userId === currentUser.id && req.status === 'pending' && (
+                                            {req.userId === currentUser.id && req.status === 'pending' && (
                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDelete(req.id)}>
                                                     <Trash className="h-4 w-4" />
                                                 </Button>

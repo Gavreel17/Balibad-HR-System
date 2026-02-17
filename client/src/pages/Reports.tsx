@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +11,19 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function Reports() {
+    const currentUser = db.getCurrentUser();
+    const [, setLocation] = useLocation();
+
+    useEffect(() => {
+        if (!currentUser) {
+            setLocation("/");
+        } else if (currentUser.role === 'employee') {
+            setLocation("/dashboard");
+        }
+    }, [currentUser, setLocation]);
+
+    if (!currentUser || currentUser.role === 'employee') return null;
+
     const users = db.getUsers();
     const attendance = db.getAttendance();
     const branchDistribution = db.getBranchDistribution();

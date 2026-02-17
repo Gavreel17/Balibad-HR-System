@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,8 +26,17 @@ export default function Payroll() {
   const users = db.getUsers().filter(u => u.status === 'active');
   const cashAdvances = db.getCashAdvanceRequests();
   const currentUser = db.getCurrentUser();
+  const [, setLocation] = useLocation();
 
-  if (!currentUser) return null;
+  useEffect(() => {
+    if (!currentUser) {
+      setLocation("/");
+    } else if (currentUser.role === 'employee') {
+      setLocation("/dashboard");
+    }
+  }, [currentUser, setLocation]);
+
+  if (!currentUser || currentUser.role === 'employee') return null;
 
   // Helper Calculations
   const calcMonthlyGross = (annual: number) => annual / 12;

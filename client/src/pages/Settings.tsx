@@ -12,6 +12,9 @@ import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { User, Shield, Bell, AppWindow, Database, Globe, Save, Lock, Settings as SettingsIconAlt, Trash2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { registerBiometrics } from "@/lib/biometrics";
+import { Fingerprint as FingerprintIcon } from "lucide-react";
+
 
 const MySwal = withReactContent(Swal);
 
@@ -30,14 +33,7 @@ export default function Settings() {
         confirmPassword: ''
     });
 
-    const [systemSettings, setSystemSettings] = useState({
-        companyName: 'BALIBAD STORE',
-        emailNotifications: true,
-        biometricEnforced: true,
-        maintenanceMode: false,
-        autoBackup: true,
-        timezone: 'GMT+8 (Manila)'
-    });
+    const [systemSettings, setSystemSettings] = useState(db.getSystemSettings());
 
     useEffect(() => {
         setArchivedCount(db.getArchives().length);
@@ -103,6 +99,10 @@ export default function Settings() {
     };
 
     const handleSave = (section: string) => {
+        if (section === 'System Preferences') {
+            db.updateSystemSettings(systemSettings);
+        }
+
         MySwal.fire({
             title: 'Config Updated',
             text: `${section} parameters have been successfully committed to the database.`,
@@ -119,8 +119,10 @@ export default function Settings() {
     const navItems = [
         { id: 'profile', label: 'Personal Profile', icon: User },
         { id: 'security', label: 'Security Levels', icon: Shield },
-        { id: 'system', label: 'System Config', icon: AppWindow },
-        { id: 'data', label: 'Data Archiving', icon: Database },
+        ...(currentUser.role === 'admin' || currentUser.role === 'hr' ? [
+            { id: 'system', label: 'System Config', icon: AppWindow },
+            { id: 'data', label: 'Data Archiving', icon: Database },
+        ] : []),
     ];
 
     return (
@@ -268,7 +270,7 @@ export default function Settings() {
                                             </div>
                                         </div>
                                     </CardContent>
-                                    <CardFooter className="bg-muted/10 border-t justify-end p-6">
+                                    <CardFooter className="bg-muted/10 border-t justify-end p-6 gap-3">
                                         <Button variant="outline" className="font-bold border-destructive/20 text-destructive hover:bg-destructive/5" onClick={() => handleSave('Security')}>
                                             Force Credentials Reboot
                                         </Button>
@@ -301,7 +303,17 @@ export default function Settings() {
                                                         <p className="text-xs text-muted-foreground italic font-medium">{item.desc}</p>
                                                     </div>
                                                 </div>
-                                                <Switch checked={item.checked} />
+                                                <Switch
+                                                    checked={item.checked}
+                                                    onCheckedChange={(checked) => {
+                                                        const newSettings = { ...systemSettings };
+                                                        if (idx === 0) newSettings.emailNotifications = checked;
+                                                        if (idx === 1) newSettings.biometricEnforced = checked;
+                                                        if (idx === 2) newSettings.autoBackup = checked;
+                                                        if (idx === 3) newSettings.maintenanceMode = checked;
+                                                        setSystemSettings(newSettings);
+                                                    }}
+                                                />
                                             </div>
                                         ))}
 

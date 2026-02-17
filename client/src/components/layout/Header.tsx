@@ -1,4 +1,5 @@
-import { Bell, Search, User } from "lucide-react";
+import { useState } from "react";
+import { Bell, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,24 +12,46 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Swal from 'sweetalert2';
 
 export function Header() {
   const currentUser = db.getCurrentUser();
+  const [searchTerm, setSearchTerm] = useState("");
+
   if (!currentUser) return null;
   const activities = db.getRecentActivity();
-  const unreadCount = activities.length; // For prototype, everything start as unread
+  const unreadCount = activities.length;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      Swal.fire({
+        title: 'Searching...',
+        text: `Looking for "${searchTerm}" across the system.`,
+        icon: 'info',
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-4">
-        <div className="relative w-96">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search employees, documents, reports..."
-            className="w-full bg-secondary pl-9 md:w-[300px] lg:w-[400px]"
-          />
-        </div>
+        <form onSubmit={handleSearch} className="relative">
+          <div className="relative w-full md:w-[300px] lg:w-[400px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search employees, documents, reports..."
+              className="w-full bg-secondary pl-9 transition-all focus:bg-background h-10 border-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </form>
       </div>
       <div className="flex items-center gap-4">
         <DropdownMenu>

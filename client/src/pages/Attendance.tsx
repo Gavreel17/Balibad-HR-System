@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, LogOut, CheckCircle2, AlertCircle, UserCheck, Users, Search, Fingerprint, ShieldCheck, XCircle, Loader2 } from "lucide-react";
+import { Clock, LogOut, CheckCircle2, AlertCircle, UserCheck, Users, Search, Fingerprint, ShieldCheck, XCircle, Loader2, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { db, Attendance, User } from "@/lib/db";
 import Swal from 'sweetalert2';
@@ -12,6 +12,8 @@ import withReactContent from 'sweetalert2-react-content';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { verifyBiometrics } from "@/lib/biometrics";
+
 
 const MySwal = withReactContent(Swal);
 
@@ -31,6 +33,12 @@ export default function AttendancePage() {
     // Real-time clock
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+        // Check for biometric support
+        if (!window.PublicKeyCredential) {
+            console.warn("Biometric authentication not supported in this browser.");
+        }
+
         return () => clearInterval(timer);
     }, []);
 
@@ -74,15 +82,30 @@ export default function AttendancePage() {
         setAttendance(db.getAttendance());
     };
 
-    const runBiometricScan = () => {
+    const runBiometricScan = async () => {
         setIsScannerOpen(true);
         setScanningState('scanning');
-        setScannerMessage("Validating fingerprint data...");
+        setScannerMessage("Waiting for sensor response...");
 
         const isCurrentlyIn = attendance.some(a => a.userId === currentUser?.id && a.date === today);
         const mode = isCurrentlyIn ? 'out' : 'in';
 
-        setTimeout(() => {
+        const settings = db.getSystemSettings();
+        const hasFingerprint = !!currentUser?.biometricCredential;
+
+        try {
+            if (hasFingerprint) {
+                setScannerMessage("Validating fingerprint with secure enclave...");
+                await verifyBiometrics(currentUser.biometricCredential!);
+            } else if (settings.biometricEnforced) {
+                // If enforced and no fingerprint, fail the scan
+                throw new Error("Biometric verification is ENFORCED. Please register your fingerprint in Settings first.");
+            } else {
+                // Fallback simulation if not enforced and no fingerprint
+                setScannerMessage("Identity Verification in progress...");
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
             setScanningState('success');
             setScannerMessage("Identity Verified!");
 
@@ -99,7 +122,14 @@ export default function AttendancePage() {
                     showConfirmButton: false
                 });
             }, 1000);
-        }, 2500);
+        } catch (err: any) {
+            setScanningState('error');
+            setScannerMessage(err.message || "Verification Failed");
+            setTimeout(() => {
+                setIsScannerOpen(false);
+                setScanningState('idle');
+            }, 2000);
+        }
     };
 
     const handleTimeIn = () => {
@@ -155,99 +185,99 @@ export default function AttendancePage() {
             <div className="space-y-8 pb-12">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="animate-in fade-in slide-in-from-left duration-500">
-                        <h2 className="text-4xl font-heading font-bold tracking-tight text-primary">Biometric Attendance</h2>
-                        <p className="text-muted-foreground text-lg mt-1 font-medium italic">
-                            Secure identity verification via digital biometric sensors.
-                        </p>
                     </div>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-3">
-                    <Card className="md:col-span-2 overflow-hidden border-none shadow-premium bg-white/80 backdrop-blur-sm group transition-all hover:bg-white/90">
-                        <CardContent className="p-8">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative">
-                                <div className="space-y-2 text-center md:text-left animate-in zoom-in duration-300">
-                                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary/40">Real-Time Clocking</h3>
-                                    <div className="text-6xl font-heading font-bold tracking-tighter text-primary">
-                                        {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                    </div>
-                                    <p className="text-lg text-muted-foreground font-bold italic">
-                                        {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-                                    </p>
-                                </div>
-                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                    <Button
-                                        size="xl"
-                                        className={cn(
-                                            "h-24 px-10 text-xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 group relative overflow-hidden rounded-2xl",
-                                            isCurrentTimedIn ? "bg-muted text-muted-foreground grayscale" : "bg-primary text-primary-foreground"
-                                        )}
-                                        onClick={handleTimeIn}
-                                        disabled={isCurrentTimedIn}
-                                    >
-                                        <div className="relative z-10 flex items-center gap-3">
-                                            <Fingerprint className={cn("h-8 w-8", !isCurrentTimedIn && "animate-pulse")} />
-                                            <span>{isCurrentTimedIn ? "Verified In" : "Scan Finger"}</span>
+                    {!isAdminOrHR && (
+                        <Card className="md:col-span-2 overflow-hidden border-none shadow-premium bg-white/80 backdrop-blur-sm group transition-all hover:bg-white/90">
+                            <CardContent className="p-8">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative">
+                                    <div className="space-y-2 text-center md:text-left animate-in zoom-in duration-300">
+                                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary/40">Real-Time Clocking</h3>
+                                        <div className="text-6xl font-heading font-bold tracking-tighter text-primary">
+                                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                         </div>
-                                        {!isCurrentTimedIn && <div className="absolute inset-0 bg-gradient-to-r from-primary-foreground/0 via-primary-foreground/10 to-primary-foreground/0 animate-shimmer" />}
-                                    </Button>
-                                    <Button
-                                        size="xl"
-                                        variant="outline"
-                                        className={cn(
-                                            "h-24 px-10 text-xl font-bold shadow-sm transition-all hover:scale-105 active:scale-95 rounded-2xl border-2",
-                                            !isCurrentTimedIn || isCurrentTimedOut ? "opacity-50 cursor-not-allowed" : "border-destructive/20 text-destructive hover:bg-destructive/10"
-                                        )}
-                                        onClick={handleTimeOut}
-                                        disabled={!isCurrentTimedIn || isCurrentTimedOut}
-                                    >
-                                        <LogOut className="mr-3 h-8 w-8" />
-                                        <span>{isCurrentTimedOut ? "Logged Out" : "Exit Scan"}</span>
-                                    </Button>
+                                        <p className="text-lg text-muted-foreground font-bold italic">
+                                            {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                        <Button
+                                            size="xl"
+                                            className={cn(
+                                                "h-24 px-10 text-xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 group relative overflow-hidden rounded-2xl",
+                                                isCurrentTimedIn ? "bg-muted text-muted-foreground grayscale" : "bg-primary text-primary-foreground"
+                                            )}
+                                            onClick={handleTimeIn}
+                                            disabled={isCurrentTimedIn}
+                                        >
+                                            <div className="relative z-10 flex items-center gap-3">
+                                                <Fingerprint className={cn("h-8 w-8", !isCurrentTimedIn && "animate-pulse")} />
+                                                <span>{isCurrentTimedIn ? "Verified In" : "Scan Finger"}</span>
+                                            </div>
+                                            {!isCurrentTimedIn && <div className="absolute inset-0 bg-gradient-to-r from-primary-foreground/0 via-primary-foreground/10 to-primary-foreground/0 animate-shimmer" />}
+                                        </Button>
+                                        <Button
+                                            size="xl"
+                                            variant="outline"
+                                            className={cn(
+                                                "h-24 px-10 text-xl font-bold shadow-sm transition-all hover:scale-105 active:scale-95 rounded-2xl border-2",
+                                                !isCurrentTimedIn || isCurrentTimedOut ? "opacity-50 cursor-not-allowed" : "border-destructive/20 text-destructive hover:bg-destructive/10"
+                                            )}
+                                            onClick={handleTimeOut}
+                                            disabled={!isCurrentTimedIn || isCurrentTimedOut}
+                                        >
+                                            <LogOut className="mr-3 h-8 w-8" />
+                                            <span>{isCurrentTimedOut ? "Logged Out" : "Exit Scan"}</span>
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <Card className="border-none shadow-premium bg-card/40 backdrop-blur-sm">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <Users className="h-4 w-4 text-primary" />
-                                Departmental Status
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-4">
-                            {[
-                                { label: 'Active Present', count: presentToday, color: 'green', type: 'present', icon: UserCheck },
-                                { label: 'Tardy Arrival', count: lateToday, color: 'amber', type: 'late', icon: AlertCircle },
-                                { label: 'Non-compliant', count: absentToday, color: 'red', type: 'absent', icon: XCircle }
-                            ].map((stat) => (
-                                <button
-                                    key={stat.type}
-                                    className="flex items-center justify-between w-full p-3 rounded-xl hover:bg-primary/5 transition-all border border-transparent hover:border-primary/20 group text-left"
-                                    onClick={() => isAdminOrHR && setViewingStatus(stat.type as any)}
-                                >
-                                    <div className="flex items-center gap-3">
+                    {isAdminOrHR && (
+                        <Card className="col-span-full border-none shadow-premium bg-card/40 backdrop-blur-sm">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                    <Users className="h-5 w-5 text-primary" />
+                                    Daily Attendance Summary
+                                </CardTitle>
+                                <CardDescription>Click on a status to view and print the detailed employee list.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+                                {[
+                                    { label: 'Active Present', count: presentToday, color: 'green', type: 'present', icon: UserCheck, desc: 'Logged in on time' },
+                                    { label: 'Tardy Arrival', count: lateToday, color: 'amber', type: 'late', icon: AlertCircle, desc: 'Logged in after 9:00 AM' },
+                                    { label: 'Non-compliant', count: absentToday, color: 'red', type: 'absent', icon: XCircle, desc: 'No log detected today' }
+                                ].map((stat) => (
+                                    <button
+                                        key={stat.type}
+                                        className="flex flex-col items-center justify-center p-8 rounded-3xl hover:bg-white/50 transition-all border-2 border-transparent hover:border-primary/20 group text-center bg-white/20 shadow-sm"
+                                        onClick={() => setViewingStatus(stat.type as any)}
+                                    >
                                         <div className={cn(
-                                            "p-2 rounded-xl shadow-inner group-hover:scale-110 transition-transform",
-                                            stat.color === 'green' ? "bg-green-100 dark:bg-green-900/40 text-green-600" :
-                                                stat.color === 'amber' ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600" :
-                                                    "bg-red-100 dark:bg-red-900/40 text-red-600"
+                                            "p-4 rounded-2xl shadow-inner group-hover:scale-110 transition-transform mb-4",
+                                            stat.color === 'green' ? "bg-green-100 text-green-600" :
+                                                stat.color === 'amber' ? "bg-amber-100 text-amber-600" :
+                                                    "bg-red-100 text-red-600"
                                         )}>
-                                            <stat.icon className="h-4 w-4" />
+                                            <stat.icon className="h-8 w-8" />
                                         </div>
-                                        <span className="text-sm font-bold text-foreground/80">{stat.label}</span>
-                                    </div>
-                                    <span className={cn(
-                                        "text-lg font-bold",
-                                        stat.color === 'green' ? "text-green-600" :
-                                            stat.color === 'amber' ? "text-amber-600" :
-                                                "text-red-600"
-                                    )}>{stat.count}</span>
-                                </button>
-                            ))}
-                        </CardContent>
-                    </Card>
+                                        <span className="text-lg font-bold text-foreground/80">{stat.label}</span>
+                                        <span className={cn(
+                                            "text-4xl font-heading font-black mt-1",
+                                            stat.color === 'green' ? "text-green-600" :
+                                                stat.color === 'amber' ? "text-amber-600" :
+                                                    "text-red-600"
+                                        )}>{stat.count}</span>
+                                        <p className="text-xs text-muted-foreground mt-2 font-medium">{stat.desc}</p>
+                                    </button>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
@@ -290,8 +320,21 @@ export default function AttendancePage() {
                 <Dialog open={!!viewingStatus} onOpenChange={(open) => !open && setViewingStatus(null)}>
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle className="capitalize">{viewingStatus} Employees Today</DialogTitle>
-                            <DialogDescription>List of employees currently marked as {viewingStatus}.</DialogDescription>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <DialogTitle className="capitalize">{viewingStatus} Employees Today</DialogTitle>
+                                    <DialogDescription>List of employees currently marked as {viewingStatus}.</DialogDescription>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.print()}
+                                    className="no-print"
+                                >
+                                    <Printer className="h-4 w-4 mr-2" />
+                                    Print List
+                                </Button>
+                            </div>
                         </DialogHeader>
                         <div className="max-h-[300px] overflow-y-auto space-y-4 py-4 px-1">
                             {getViewingList().map((emp) => (
@@ -320,15 +363,15 @@ export default function AttendancePage() {
                                     <Clock className="h-5 w-5" /> Organization Ledger
                                 </CardTitle>
                                 <CardDescription className="font-medium italic">Audit-ready historical logs.</CardDescription>
-                            </div>
-                            <div className="relative w-full md:w-80">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/60" />
-                                <Input
-                                    placeholder="Search records..."
-                                    className="pl-10 h-10 border-none bg-muted focus-visible:ring-1 text-sm font-medium"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                                <div className="relative w-full md:w-80">
+                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/60" />
+                                    <Input
+                                        placeholder="Search records..."
+                                        className="pl-10 h-10 border-none bg-muted focus-visible:ring-1 text-sm font-medium"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </CardHeader>
@@ -385,6 +428,29 @@ export default function AttendancePage() {
                     </CardContent>
                 </Card>
             </div>
+            <style>{`
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                    [role="dialog"], [role="dialog"] * {
+                        visibility: visible;
+                    }
+                    [role="dialog"] {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                        box-shadow: none;
+                        border: none;
+                    }
+                }
+            `}</style>
         </DashboardLayout>
     );
 }

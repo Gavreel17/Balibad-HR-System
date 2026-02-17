@@ -17,6 +17,7 @@ export interface User {
   address?: string;
   contactNumber?: string;
   isEmployee: boolean;
+  biometricCredential?: string; // Stored as base64 or JSON string
 }
 
 export interface Attendance {
@@ -66,7 +67,17 @@ export interface CashAdvanceRequest {
   requestDate: string;
 }
 
+export interface SystemSettings {
+  companyName: string;
+  emailNotifications: boolean;
+  biometricEnforced: boolean;
+  maintenanceMode: boolean;
+  autoBackup: boolean;
+  timezone: string;
+}
+
 // Initial Mock Data
+
 const MOCK_USERS: User[] = [
   {
     id: '001',
@@ -187,6 +198,30 @@ class DataManager {
   private activities: ActivityLog[] = MOCK_ACTIVITIES;
   private archives: any[] = [];
   private currentUser: User | null = null;
+  private systemSettings: SystemSettings = {
+    companyName: 'BALIBAD STORE',
+    emailNotifications: true,
+    biometricEnforced: true,
+    maintenanceMode: false,
+    autoBackup: true,
+    timezone: 'GMT+8 (Manila)'
+  };
+
+  getSystemSettings() {
+    const saved = localStorage.getItem('hrms_settings');
+    if (saved) {
+      try {
+        this.systemSettings = { ...this.systemSettings, ...JSON.parse(saved) };
+      } catch (e) { }
+    }
+    return this.systemSettings;
+  }
+
+  updateSystemSettings(data: Partial<SystemSettings>) {
+    this.systemSettings = { ...this.systemSettings, ...data };
+    localStorage.setItem('hrms_settings', JSON.stringify(this.systemSettings));
+  }
+
 
   updateCurrentUser(data: Partial<User>) {
     if (this.currentUser) {
@@ -313,10 +348,13 @@ class DataManager {
 
   getDashboardStats() {
     const today = new Date().toISOString().split('T')[0];
+    const todaysRecords = this.attendance.filter(a => a.date === today);
+    const activeStaff = this.users.filter(u => u.status === 'active').length;
     return {
-      totalEmployees: this.users.filter(u => u.isEmployee && u.status === 'active').length,
-      onTimeToday: this.attendance.filter(a => a.date === today && a.status === 'present').length,
-      lateToday: this.attendance.filter(a => a.date === today && a.status === 'late').length,
+      totalEmployees: activeStaff,
+      onTimeToday: todaysRecords.filter(a => a.status === 'present').length,
+      lateToday: todaysRecords.filter(a => a.status === 'late').length,
+      absentToday: Math.max(0, activeStaff - todaysRecords.length),
       pendingAdvances: this.cashAdvances.filter(ca => ca.status === 'pending').length,
     };
   }

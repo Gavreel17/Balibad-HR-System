@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,7 +29,17 @@ const MySwal = withReactContent(Swal);
 
 export default function Employees() {
   const currentUser = db.getCurrentUser();
-  if (!currentUser) return null;
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!currentUser) {
+      setLocation("/");
+    } else if (currentUser.role === 'employee') {
+      setLocation("/dashboard");
+    }
+  }, [currentUser, setLocation]);
+
+  if (!currentUser || currentUser.role === 'employee') return null;
 
   const [users, setUsers] = useState(db.getUsers().filter(u => u.isEmployee));
   const [searchTerm, setSearchTerm] = useState("");

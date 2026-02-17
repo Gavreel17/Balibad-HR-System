@@ -11,7 +11,7 @@ import { Link } from "wouter";
 export function AdminDashboard() {
     const stats = db.getDashboardStats();
     const attendanceData = db.getWeeklyAttendance();
-    const recentActivity = db.getRecentActivity().slice(0, 5);
+    const recentActivity = db.getRecentActivity().filter(a => a.type === 'attendance').slice(0, 5);
     const user = db.getCurrentUser();
 
     if (!user) return null;
@@ -69,12 +69,12 @@ export function AdminDashboard() {
                         trendValue="-1"
                     />
                     <StatsCard
-                        title="Cash Requests"
-                        value={stats.pendingAdvances.toString()}
-                        description="Awaiting approval"
-                        icon={Banknote}
+                        title="Absent Today"
+                        value={stats.absentToday.toString()}
+                        description="Team non-attendance"
+                        icon={CalendarOff}
                         trend="neutral"
-                        trendValue="Active"
+                        trendValue="Review"
                     />
                 </div>
 
