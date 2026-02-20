@@ -16,7 +16,7 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("employee");
+  const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -29,11 +29,11 @@ export default function Register() {
         id: `U-${Math.floor(Math.random() * 900) + 100}`,
         name,
         email,
-        role: role,
-        department: role === 'admin' ? 'Management' : 'General',
-        position: role === 'admin' ? 'System Administrator' : 'Staff',
+        role: selectedRole,
+        department: selectedRole === 'admin' ? 'Management' : 'General',
+        position: selectedRole === 'admin' ? 'System Administrator' : 'Staff',
         joinDate: new Date().toISOString().split('T')[0],
-        salary: role === 'admin' ? 80000 : 30000,
+        salary: selectedRole === 'admin' ? 80000 : 30000,
         status: 'active' as const,
         branch: 'Dimataling',
         isEmployee: false
@@ -42,11 +42,11 @@ export default function Register() {
       db.addUser(newUser);
 
       // Auto-login after registration
-      db.login(email, role);
+      db.login(email, selectedRole);
 
       MySwal.fire({
         title: 'Welcome to BALIBAD STORE',
-        text: `Account provisioned successfully for ${name}. Accessing ${role === 'admin' ? 'ADMIN' : 'STAFF'} portal...`,
+        text: `Account provisioned successfully for ${name}. Accessing ${selectedRole === 'admin' ? 'ADMIN' : 'STAFF'} portal...`,
         icon: 'success',
         timer: 2000,
         showConfirmButton: false
@@ -67,13 +67,39 @@ export default function Register() {
             <img src={logo} alt="Balibad Store Logo" className="h-16 w-auto object-contain" />
           </div>
           <h1 className="text-3xl font-heading font-bold tracking-tight">System Registration</h1>
-          <p className="text-muted-foreground">Create your own secure enterprise credentials</p>
+          <p className="text-muted-foreground">Select your portal and create credentials</p>
         </div>
 
         <Card className="border-none shadow-lg">
           <CardHeader>
+            <div className="flex items-center justify-between mb-4 bg-muted p-1 rounded-lg">
+              <Button
+                type="button"
+                variant={selectedRole === 'admin' ? "default" : "ghost"}
+                className="flex-1 text-xs"
+                size="sm"
+                onClick={() => {
+                  setSelectedRole('admin');
+                }}
+              >
+                Admin Portal
+              </Button>
+              <Button
+                type="button"
+                variant={selectedRole === 'hr' ? "default" : "ghost"}
+                className="flex-1 text-xs font-bold"
+                size="sm"
+                onClick={() => {
+                  setSelectedRole('hr');
+                }}
+              >
+                Staff Portal
+              </Button>
+            </div>
             <CardTitle>Create Account</CardTitle>
-            <CardDescription>Enter your details to register your portal access</CardDescription>
+            <CardDescription>
+              Registering for {selectedRole === 'admin' ? 'ADMINISTRATOR' : 'STAFF'} portal access
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -108,23 +134,15 @@ export default function Register() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Portal Access Role</Label>
-                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
-                  <SelectTrigger id="role" className="w-full bg-background border-muted-foreground/20">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">System Administrator</SelectItem>
-                    <SelectItem value="hr">Staff</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-muted-foreground mt-1 italic">Note: Role selection determines your available dashboard features.</p>
-              </div>
 
-              <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" type="submit" disabled={isLoading}>
-                {isLoading ? "Provisioning Account..." : "Confirm Registration"}
-              </Button>
+              <div className="pt-2">
+                <p className="text-[10px] text-muted-foreground italic mb-4">
+                  Note: Your account will be provisioned with {selectedRole === 'admin' ? 'Administrative' : 'Staff'} privileges based on your portal selection.
+                </p>
+                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" type="submit" disabled={isLoading}>
+                  {isLoading ? "Provisioning Account..." : `Register as ${selectedRole === 'admin' ? 'Admin' : 'Staff'}`}
+                </Button>
+              </div>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col gap-4 border-t p-4 bg-muted/20">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Clock, CalendarCheck, CalendarOff, History, Wallet, Plane, Gift, ArrowRight } from "lucide-react";
@@ -7,17 +8,73 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus } from "lucide-react";
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+import { CashAdvanceRequest } from "@/lib/db";
+
+const MySwal = withReactContent(Swal);
 
 interface StaffDashboardProps {
     user: User;
 }
 
 export function StaffDashboard({ user }: StaffDashboardProps) {
-    const cashAdvances = db.getCashAdvanceRequests().filter(ca => ca.userId === user.id);
+    const [cashAdvances, setCashAdvances] = useState(() => db.getCashAdvanceRequests().filter(ca => ca.userId === user.id));
     const presentDays = db.getAttendance().filter(a => a.userId === user.id && a.status === 'present').length;
     const lateDays = db.getAttendance().filter(a => a.userId === user.id && a.status === 'late').length;
     const pendingAdvances = cashAdvances.filter(ca => ca.status === 'pending').length;
     const leaveBalance = db.getLeaveBalance(user.id);
+
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [newRequest, setNewRequest] = useState({
+        amount: '',
+        purpose: ''
+    });
+
+    const handleSubmitRequest = () => {
+        if (!newRequest.amount || !newRequest.purpose) {
+            MySwal.fire('Error', 'Please fill in all fields', 'error');
+            return;
+        }
+
+        const request: CashAdvanceRequest = {
+            id: `ca-${Date.now()}`,
+            userId: user.id,
+            amount: parseFloat(newRequest.amount),
+            purpose: newRequest.purpose,
+            requestDate: new Date().toISOString().split('T')[0],
+            status: 'pending'
+        };
+
+        db.addCashAdvanceRequest(request);
+        setCashAdvances(db.getCashAdvanceRequests().filter(ca => ca.userId === user.id));
+
+        // Send notification to admin if requested by non-admin
+        if (user.role !== 'admin') {
+            db.addActivity({
+                type: 'cash_advance',
+                avatar: user.name.split(' ').map((n: string) => n[0]).join(''),
+                user: user.name,
+                action: 'requested',
+                target: `cash advance of ₱${request.amount.toLocaleString()}`,
+                time: 'Just now'
+            });
+        }
+
+        setNewRequest({ amount: '', purpose: '' });
+        setIsDialogOpen(false);
+
+        MySwal.fire({
+            title: 'Success!',
+            text: 'Cash advance request submitted.',
+            icon: 'success'
+        });
+    };
 
     return (
         <DashboardLayout>
@@ -183,6 +240,49 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                     History <ArrowRight className="ml-1 h-3 w-3" />
                                 </Button>
                             </Link>
+                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="ml-2 gap-1 shadow-md">
+                                        <Plus className="h-3.5 w-3.5" />
+                                        <span>Request</span>
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Request Cash Advance</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="amount" className="text-right">
+                                                Amount (₱)
+                                            </Label>
+                                            <Input
+                                                id="amount"
+                                                type="number"
+                                                value={newRequest.amount}
+                                                onChange={(e) => setNewRequest({ ...newRequest, amount: e.target.value })}
+                                                className="col-span-3"
+                                                placeholder="e.g. 5000"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="purpose" className="text-right">
+                                                Purpose
+                                            </Label>
+                                            <Textarea
+                                                id="purpose"
+                                                value={newRequest.purpose}
+                                                onChange={(e) => setNewRequest({ ...newRequest, purpose: e.target.value })}
+                                                className="col-span-3"
+                                                placeholder="Reason for request..."
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button onClick={handleSubmitRequest}>Submit Request</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">

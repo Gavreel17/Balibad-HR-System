@@ -8,9 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Check, X, Trash, Users } from "lucide-react";
-import { Link } from "wouter";
-import { db, CashAdvanceRequest, UserRole } from "@/lib/db";
+import { Plus, Check, X, Trash } from "lucide-react";
+import { db, CashAdvanceRequest } from "@/lib/db";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -19,12 +18,41 @@ const MySwal = withReactContent(Swal);
 export default function CashAdvancesPage() {
     const currentUser = db.getCurrentUser();
     if (!currentUser) return null;
+
     const [requests, setRequests] = useState(db.getCashAdvanceRequests());
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newRequest, setNewRequest] = useState({
+        name: '',
         amount: '',
         purpose: ''
     });
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [nameSuggestions, setNameSuggestions] = useState<{ id: string; name: string }[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    const allEmployees = db.getUsers().filter(u => u.isEmployee);
+
+    const handleNameInput = (value: string) => {
+        setNewRequest({ ...newRequest, name: value });
+        setSelectedUserId('');
+        if (value.trim().length > 0) {
+            const filtered = allEmployees.filter(u =>
+                u.name.toLowerCase().includes(value.toLowerCase())
+            );
+            setNameSuggestions(filtered);
+            setShowSuggestions(true);
+        } else {
+            setNameSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
+    const handleSelectEmployee = (emp: { id: string; name: string }) => {
+        setNewRequest({ ...newRequest, name: emp.name });
+        setSelectedUserId(emp.id);
+        setShowSuggestions(false);
+        setNameSuggestions([]);
+    };
 
     const isAdmin = currentUser.role === 'admin';
     const isHR = currentUser.role === 'hr';
@@ -36,19 +64,6 @@ export default function CashAdvancesPage() {
         ? requests
         : requests.filter(r => r.userId === currentUser.id);
 
-    const [selectedUserId, setSelectedUserId] = useState(currentUser.id);
-
-    // Update selectedUserId if currentUser changes (e.g. re-login)
-    // But mostly we want to initialize it to currentUser.id
-
-    const handleUserSelect = (userId: string) => {
-        setSelectedUserId(userId);
-    };
-
-    const getSelectedUser = () => {
-        return db.getUsers().find(u => u.id === selectedUserId) || currentUser;
-    };
-
     const handleSubmitRequest = () => {
         if (!newRequest.amount || !newRequest.purpose) {
             MySwal.fire('Error', 'Please fill in all fields', 'error');
@@ -57,7 +72,7 @@ export default function CashAdvancesPage() {
 
         const request: CashAdvanceRequest = {
             id: `ca-${Date.now()}`,
-            userId: selectedUserId,
+            userId: selectedUserId || currentUser.id,
             amount: parseFloat(newRequest.amount),
             purpose: newRequest.purpose,
             requestDate: new Date().toISOString().split('T')[0],
@@ -66,7 +81,7 @@ export default function CashAdvancesPage() {
 
         db.addCashAdvanceRequest(request);
 
-        // Send notification to admin if requested by non-admin
+        // Send notification to admin
         if (currentUser.role !== 'admin') {
             db.addActivity({
                 type: 'cash_advance',
@@ -79,10 +94,8 @@ export default function CashAdvancesPage() {
         }
 
         setRequests(db.getCashAdvanceRequests());
-
-        setNewRequest({ amount: '', purpose: '' });
-        // Reset to current user after submit if desired, or keep selected
-        setSelectedUserId(currentUser.id);
+        setNewRequest({ name: '', amount: '', purpose: '' });
+        setSelectedUserId('');
         setIsDialogOpen(false);
 
         MySwal.fire({
@@ -132,8 +145,6 @@ export default function CashAdvancesPage() {
         return user ? user.name : 'Unknown User';
     };
 
-    const selectedUser = getSelectedUser();
-
     return (
         <DashboardLayout>
             <div className="space-y-8">
@@ -142,6 +153,90 @@ export default function CashAdvancesPage() {
                         <h2 className="text-3xl font-heading font-bold tracking-tight">Cash Advances</h2>
                         <p className="text-muted-foreground">Manage cash advance requests.</p>
                     </div>
+                    {!isAdmin && (
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="gap-2 shadow-md">
+                                    <Plus className="h-4 w-4" />
+                                    Request Cash Advance
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Request Cash Advance</DialogTitle>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-start gap-4">
+                                        <Label htmlFor="ca-name" className="text-right pt-2">Name</Label>
+                                        <div className="col-span-3 relative">
+                                            <Input
+                                                id="ca-name"
+                                                value={newRequest.name}
+                                                onChange={(e) => handleNameInput(e.target.value)}
+                                                onFocus={() => newRequest.name && setShowSuggestions(true)}
+                                                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                                                placeholder="Type employee name..."
+                                                autoComplete="off"
+                                            />
+                                            {showSuggestions && nameSuggestions.length > 0 && (
+                                                <ul className="absolute z-50 w-full bg-background border border-border rounded-md shadow-lg mt-1 max-h-48 overflow-auto">
+                                                    {nameSuggestions.map(emp => (
+                                                        <li
+                                                            key={emp.id}
+                                                            className="px-3 py-2 cursor-pointer hover:bg-primary/10 text-sm flex justify-between items-center"
+                                                            onMouseDown={() => handleSelectEmployee(emp)}
+                                                        >
+                                                            <span className="font-medium">{emp.name}</span>
+                                                            <span className="text-xs text-muted-foreground">{emp.id}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {showSuggestions && nameSuggestions.length === 0 && newRequest.name && (
+                                                <ul className="absolute z-50 w-full bg-background border border-border rounded-md shadow-lg mt-1">
+                                                    <li className="px-3 py-2 text-sm text-muted-foreground">No employees found.</li>
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="ca-empid" className="text-right">Employee ID</Label>
+                                        <Input
+                                            id="ca-empid"
+                                            value={selectedUserId || ''}
+                                            readOnly
+                                            className="col-span-3 bg-muted cursor-not-allowed"
+                                            placeholder="Auto-filled on selection"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="ca-amount" className="text-right">Amount (₱)</Label>
+                                        <Input
+                                            id="ca-amount"
+                                            type="number"
+                                            value={newRequest.amount}
+                                            onChange={(e) => setNewRequest({ ...newRequest, amount: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="e.g. 5000"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="ca-purpose" className="text-right">Purpose</Label>
+                                        <Textarea
+                                            id="ca-purpose"
+                                            value={newRequest.purpose}
+                                            onChange={(e) => setNewRequest({ ...newRequest, purpose: e.target.value })}
+                                            className="col-span-3"
+                                            placeholder="Reason for request..."
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button onClick={handleSubmitRequest}>Submit Request</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
 
                 <Card className="border-none shadow-sm">

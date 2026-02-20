@@ -27,7 +27,9 @@ export default function AttendancePage() {
     const [scannerMessage, setScannerMessage] = useState("Place your finger on the sensor");
     const currentUser = db.getCurrentUser();
 
-    const isAdminOrHR = currentUser?.role === 'admin' || currentUser?.role === 'hr';
+    const isAdmin = currentUser?.role === 'admin';
+    const isHR = currentUser?.role === 'hr';
+    const isAdminOrHR = isAdmin || isHR;
     const today = new Date().toISOString().split('T')[0];
 
     // Real-time clock
@@ -237,7 +239,7 @@ export default function AttendancePage() {
                         </Card>
                     )}
 
-                    {isAdminOrHR && (
+                    {isAdmin && (
                         <Card className="col-span-full border-none shadow-premium bg-card/40 backdrop-blur-sm">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xl font-bold flex items-center gap-2">

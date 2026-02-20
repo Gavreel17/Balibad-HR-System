@@ -159,24 +159,28 @@ export default function Documents() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <Tabs defaultValue="all" className="w-full">
+              <Tabs defaultValue="files" className="w-full">
                 <TabsList className="w-full justify-start rounded-none border-b bg-muted/10 h-12 px-2">
-                  <TabsTrigger value="all" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+                  <TabsTrigger value="files" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
                     <FileText className="mr-2 h-4 w-4" /> Files
                   </TabsTrigger>
-                  <TabsTrigger value="employees" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
-                    <Users className="mr-2 h-4 w-4" /> Team
-                  </TabsTrigger>
-                  <TabsTrigger value="attendance" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
-                    <Clock className="mr-2 h-4 w-4" /> Attendance
-                  </TabsTrigger>
-                  <TabsTrigger value="advances" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
-                    <Banknote className="mr-2 h-4 w-4" /> Advances
-                  </TabsTrigger>
+                  {currentUser?.role !== 'employee' && (
+                    <>
+                      <TabsTrigger value="employees" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+                        <Users className="mr-2 h-4 w-4" /> Team
+                      </TabsTrigger>
+                      <TabsTrigger value="attendance" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+                        <Clock className="mr-2 h-4 w-4" /> Attendance
+                      </TabsTrigger>
+                      <TabsTrigger value="advances" className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary">
+                        <Banknote className="mr-2 h-4 w-4" /> Advances
+                      </TabsTrigger>
+                    </>
+                  )}
                 </TabsList>
 
                 <div className="p-6">
-                  <TabsContent value="all" className="m-0 focus-visible:ring-0">
+                  <TabsContent value="files" className="m-0 focus-visible:ring-0">
                     {filteredDocuments.length === 0 ? (
                       <div className="text-center py-20">
                         <Folder className="mx-auto h-12 w-12 text-muted-foreground/20 mb-4" />
@@ -197,14 +201,16 @@ export default function Documents() {
                                 <span className="text-[10px] text-muted-foreground italic tracking-tighter">• {file.uploadDate}</span>
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-3 h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
-                              onClick={() => handleDelete(file.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
+                            {currentUser?.role !== 'employee' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-3 h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                                onClick={() => handleDelete(file.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -212,105 +218,111 @@ export default function Documents() {
                   </TabsContent>
 
                   <TabsContent value="employees" className="m-0 focus-visible:ring-0">
-                    <div className="rounded-xl border border-muted/50 overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/30">
-                          <TableRow>
-                            <TableHead className="font-bold">Team Member</TableHead>
-                            <TableHead className="font-bold">Branch</TableHead>
-                            <TableHead className="font-bold text-right">Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {employees.map((emp) => (
-                            <TableRow key={emp.id} className="hover:bg-muted/20">
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8 border shadow-sm">
-                                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="text-sm font-bold leading-none">{emp.name}</p>
-                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-wider">{emp.position}</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs font-bold text-muted-foreground">{emp.branch}</TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant={emp.status === 'active' ? 'default' : 'secondary'} className="text-[10px] capitalize font-bold">
-                                  {emp.status}
-                                </Badge>
-                              </TableCell>
+                    {currentUser?.role !== 'employee' && (
+                      <div className="rounded-xl border border-muted/50 overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead className="font-bold">Team Member</TableHead>
+                              <TableHead className="font-bold">Branch</TableHead>
+                              <TableHead className="font-bold text-right">Status</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {employees.map((emp) => (
+                              <TableRow key={emp.id} className="hover:bg-muted/20">
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8 border shadow-sm">
+                                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="text-sm font-bold leading-none">{emp.name}</p>
+                                      <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-wider">{emp.position}</p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs font-bold text-muted-foreground">{emp.branch}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={emp.status === 'active' ? 'default' : 'secondary'} className="text-[10px] capitalize font-bold">
+                                    {emp.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="attendance" className="m-0 focus-visible:ring-0">
-                    <div className="rounded-xl border border-muted/50 overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/30">
-                          <TableRow>
-                            <TableHead className="font-bold">Employee</TableHead>
-                            <TableHead className="font-bold">Date</TableHead>
-                            <TableHead className="font-bold text-right">Logging</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {attendance.slice(0, 15).map((log) => (
-                            <TableRow key={log.id} className="hover:bg-muted/20">
-                              <TableCell className="text-sm font-bold">{getEmployeeName(log.userId)}</TableCell>
-                              <TableCell className="text-xs font-bold text-muted-foreground">{log.date}</TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant="outline" className={cn(
-                                  "text-[10px] font-bold uppercase",
-                                  log.status === 'present' ? "border-green-500 text-green-600 bg-green-50" : "border-amber-500 text-amber-600 bg-amber-50"
-                                )}>
-                                  {log.status} • {log.timeIn}
-                                </Badge>
-                              </TableCell>
+                    {currentUser?.role !== 'employee' && (
+                      <div className="rounded-xl border border-muted/50 overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead className="font-bold">Employee</TableHead>
+                              <TableHead className="font-bold">Date</TableHead>
+                              <TableHead className="font-bold text-right">Logging</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {attendance.slice(0, 15).map((log) => (
+                              <TableRow key={log.id} className="hover:bg-muted/20">
+                                <TableCell className="text-sm font-bold">{getEmployeeName(log.userId)}</TableCell>
+                                <TableCell className="text-xs font-bold text-muted-foreground">{log.date}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant="outline" className={cn(
+                                    "text-[10px] font-bold uppercase",
+                                    log.status === 'present' ? "border-green-500 text-green-600 bg-green-50" : "border-amber-500 text-amber-600 bg-amber-50"
+                                  )}>
+                                    {log.status} • {log.timeIn}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="advances" className="m-0 focus-visible:ring-0">
-                    <div className="rounded-xl border border-muted/50 overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/30">
-                          <TableRow>
-                            <TableHead className="font-bold">Requested By</TableHead>
-                            <TableHead className="font-bold">Amount</TableHead>
-                            <TableHead className="font-bold text-right">Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {cashAdvances.map((adv) => (
-                            <TableRow key={adv.id} className="hover:bg-muted/20">
-                              <TableCell>
-                                <div>
-                                  <p className="text-sm font-bold leading-none">{getEmployeeName(adv.userId)}</p>
-                                  <p className="text-[10px] text-muted-foreground font-medium mt-1 italic tracking-tight">{adv.purpose}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm font-bold text-primary">₱{adv.amount.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">
-                                <Badge className={cn(
-                                  "text-[10px] font-bold uppercase",
-                                  adv.status === 'approved' ? "bg-green-600" : adv.status === 'pending' ? "bg-amber-500" : "bg-destructive"
-                                )}>
-                                  {adv.status}
-                                </Badge>
-                              </TableCell>
+                    {currentUser?.role !== 'employee' && (
+                      <div className="rounded-xl border border-muted/50 overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead className="font-bold">Requested By</TableHead>
+                              <TableHead className="font-bold">Amount</TableHead>
+                              <TableHead className="font-bold text-right">Status</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {cashAdvances.map((adv) => (
+                              <TableRow key={adv.id} className="hover:bg-muted/20">
+                                <TableCell>
+                                  <div>
+                                    <p className="text-sm font-bold leading-none">{getEmployeeName(adv.userId)}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 italic tracking-tight">{adv.purpose}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm font-bold text-primary">₱{adv.amount.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge className={cn(
+                                    "text-[10px] font-bold uppercase",
+                                    adv.status === 'approved' ? "bg-green-600" : adv.status === 'pending' ? "bg-amber-500" : "bg-destructive"
+                                  )}>
+                                    {adv.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </TabsContent>
                 </div>
               </Tabs>

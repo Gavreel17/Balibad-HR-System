@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/lib/db";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Users, UserCheck, Banknote, CalendarDays, Download, TrendingUp, MapPin, Award } from "lucide-react";
+import { Users, UserCheck, Banknote, CalendarDays, Download, TrendingUp, MapPin, Award, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +109,7 @@ export default function Reports() {
                         <TabsTrigger value="departments" className="rounded-xl px-8 font-bold data-[state=active]:shadow-md">Divisions</TabsTrigger>
                         <TabsTrigger value="attendance" className="rounded-xl px-8 font-bold data-[state=active]:shadow-md">Logistics</TabsTrigger>
                         <TabsTrigger value="financials" className="rounded-xl px-8 font-bold data-[state=active]:shadow-md">Financials</TabsTrigger>
+                        <TabsTrigger value="audit" className="rounded-xl px-8 font-bold data-[state=active]:shadow-md">Audit Trails</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -240,6 +241,61 @@ export default function Reports() {
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+                    <TabsContent value="audit" className="space-y-6 animate-in fade-in duration-500">
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <Card className="border-none shadow-premium overflow-hidden">
+                                <CardHeader className="bg-primary/5 border-b">
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-primary" /> Staff Activity Logs
+                                    </CardTitle>
+                                    <CardDescription>Employee interactions and requests.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="max-h-[500px] overflow-y-auto">
+                                        {db.getRecentActivity()
+                                            .filter(a => a.userRole === 'employee')
+                                            .map((log, i) => (
+                                                <div key={log.id} className={cn("p-4 border-b last:border-0 hover:bg-muted/30 transition-colors", i % 2 === 0 ? "bg-white" : "bg-muted/10")}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="font-bold text-sm">{log.user}</span>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{log.time}</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {log.action} <span className="font-bold text-foreground">{log.target}</span>
+                                                    </p>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-none shadow-premium overflow-hidden">
+                                <CardHeader className="bg-amber-500/5 border-b">
+                                    <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
+                                        <ShieldCheck className="h-5 w-5" /> Administrative Actions
+                                    </CardTitle>
+                                    <CardDescription>System-level modifications and approvals.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="max-h-[500px] overflow-y-auto">
+                                        {db.getRecentActivity()
+                                            .filter(a => a.userRole === 'admin' || a.userRole === 'hr')
+                                            .map((log, i) => (
+                                                <div key={log.id} className={cn("p-4 border-b last:border-0 hover:bg-muted/30 transition-colors", i % 2 === 0 ? "bg-white" : "bg-muted/10")}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="font-bold text-sm text-amber-900">{log.user}</span>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{log.time}</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {log.action} <span className="font-bold text-foreground">{log.target}</span>
+                                                    </p>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>

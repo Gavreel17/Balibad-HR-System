@@ -11,7 +11,7 @@ import { Link } from "wouter";
 export function AdminDashboard() {
     const stats = db.getDashboardStats();
     const attendanceData = db.getWeeklyAttendance();
-    const recentActivity = db.getRecentActivity().filter(a => a.type === 'attendance').slice(0, 5);
+    const recentActivity = db.getRecentActivity().slice(0, 50);
     const user = db.getCurrentUser();
 
     if (!user) return null;

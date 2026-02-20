@@ -13,8 +13,8 @@ export default function Dashboard() {
     return null;
   }
 
-  // Admin and HR roles see the main dashboard
-  if (user.role === 'admin' || user.role === 'hr') {
+  // Admin role sees the main dashboard
+  if (user.role === 'admin') {
     return <AdminDashboard />;
   }
 

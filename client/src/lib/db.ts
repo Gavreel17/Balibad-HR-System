@@ -52,6 +52,7 @@ export interface ActivityLog {
   id: string;
   avatar: string;
   user: string;
+  userRole?: UserRole;
   action: string;
   target: string;
   time: string;
@@ -183,9 +184,11 @@ const MOCK_CASH_ADVANCES: CashAdvanceRequest[] = [
 ];
 
 const MOCK_ACTIVITIES: ActivityLog[] = [
-  { id: 'a1', type: 'attendance', avatar: 'JA', user: 'Jessica Alverez', action: 'checked in', target: 'on time', time: '2 hours ago' },
-  { id: 'a2', type: 'leave', avatar: 'EB', user: 'Emily Blunt', action: 'requested', target: 'sick leave', time: '4 hours ago' },
-  { id: 'a3', type: 'cash_advance', avatar: 'DR', user: 'David Ross', action: 'requested', target: 'cash advance', time: '1 day ago' },
+  { id: 'a1', type: 'attendance', avatar: 'JA', user: 'Jessica Alverez', userRole: 'employee', action: 'checked in', target: 'on time', time: '2 hours ago' },
+  { id: 'a2', type: 'leave', avatar: 'EB', user: 'Emily Blunt', userRole: 'employee', action: 'requested', target: 'sick leave', time: '4 hours ago' },
+  { id: 'a3', type: 'cash_advance', avatar: 'DR', user: 'David Ross', userRole: 'employee', action: 'requested', target: 'cash advance', time: '1 day ago' },
+  { id: 'a4', type: 'system', avatar: 'SJ', user: 'Sarah Jenkins', userRole: 'admin', action: 'updated', target: 'system settings', time: '3 hours ago' },
+  { id: 'a5', type: 'payroll', avatar: 'MC', user: 'Michael Chen', userRole: 'hr', action: 'processed', target: 'monthly payroll', time: '5 hours ago' },
 ];
 
 // Singleton Data Manager
@@ -341,7 +344,8 @@ class DataManager {
   addActivity(activity: Omit<ActivityLog, 'id'>) {
     const newActivity: ActivityLog = {
       ...activity,
-      id: `act-${Date.now()}`
+      id: `act-${Date.now()}`,
+      userRole: activity.userRole || this.currentUser?.role
     };
     this.activities = [newActivity, ...this.activities];
   }
