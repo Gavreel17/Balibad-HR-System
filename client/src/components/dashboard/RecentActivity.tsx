@@ -24,9 +24,8 @@ export function RecentActivity({ activities }: RecentActivityProps) {
             <AvatarFallback className={cn(
               "text-[10px] font-bold",
               activity.type === 'attendance' ? "bg-green-100 text-green-700" :
-                activity.type === 'leave' ? "bg-indigo-100 text-indigo-700" :
-                  activity.type === 'payroll' ? "bg-purple-100 text-purple-700" :
-                    "bg-amber-100 text-amber-700"
+                activity.type === 'payroll' ? "bg-purple-100 text-purple-700" :
+                  "bg-amber-100 text-amber-700"
             )}>
               {activity.avatar}
             </AvatarFallback>

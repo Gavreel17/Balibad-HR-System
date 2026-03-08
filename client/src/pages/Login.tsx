@@ -10,25 +10,29 @@ import logo from "@/assets/logo.png";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'hr' | 'employee'>('admin');
   const [isLoading, setIsLoading] = useState(false);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const isStaffLogin = location === '/staff-login';
+  const selectedRole = isStaffLogin ? 'hr' : 'admin';
+  const portalName = isStaffLogin ? 'Staff Portal' : 'Admin Portal';
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const user = db.login(email, selectedRole);
+    try {
+      const user = await db.login(email, selectedRole);
       if (user) {
         setLocation("/dashboard");
       } else {
-        // Show error message if user not found with that role/email
         alert("Invalid credentials for the selected portal. Please check your email and portal selection.");
       }
+    } catch (error) {
+      alert("An error occurred during login. Please try again.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -38,36 +42,13 @@ export default function Login() {
           <div className="flex items-center justify-center mb-4">
             <img src={logo} alt="Balibad Store Logo" className="h-16 w-auto object-contain" />
           </div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">Portal Access</h1>
-          <p className="text-muted-foreground">Select your portal and enter credentials</p>
+          <h1 className="text-3xl font-heading font-bold tracking-tight">{portalName}</h1>
+          <p className="text-muted-foreground">Enter credentials to access {isStaffLogin ? 'staff' : 'admin'} dashboard</p>
         </div>
 
         <Card className="border-none shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between mb-4 bg-muted p-1 rounded-lg">
-              <Button
-                type="button"
-                variant={selectedRole === 'admin' ? "default" : "ghost"}
-                className="flex-1 text-xs"
-                size="sm"
-                onClick={() => {
-                  setSelectedRole('admin');
-                }}
-              >
-                Admin Portal
-              </Button>
-              <Button
-                type="button"
-                variant={selectedRole === 'hr' ? "default" : "ghost"}
-                className="flex-1 text-xs font-bold"
-                size="sm"
-                onClick={() => {
-                  setSelectedRole('hr');
-                }}
-              >
-                Staff Portal
-              </Button>
-            </div>
+            {/* Role selector removed in favor of URL separation */}
             <CardTitle>Sign In</CardTitle>
             <CardDescription>Enter your credentials to access your dashboard</CardDescription>
           </CardHeader>
@@ -103,8 +84,9 @@ export default function Login() {
             </form>
           </CardContent>
           <CardFooter className="flex flex-col gap-4 border-t p-4 bg-muted/20 text-center">
+
             <p className="text-sm text-muted-foreground">
-              Need portal access? <Link href="/register" className="text-primary hover:underline font-bold">Register account</Link>
+              Need portal access? <Link href={isStaffLogin ? "/staff-register" : "/admin-register"} className="text-primary hover:underline font-bold">Register account</Link>
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
               Secure Enterprise Portal

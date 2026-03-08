@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useSettings, useHRMSMutations, useUsers } from "@/hooks/use-hrms";
+import { Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { db } from "@/lib/db";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { User, Shield, Bell, AppWindow, Database, Globe, Save, Lock, Settings as SettingsIconAlt, Trash2, CheckCircle } from "lucide-react";
+import { User, Shield, Bell, AppWindow, Database, Globe, Save, Lock, Settings as SettingsIconAlt, Trash2, CheckCircle, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registerBiometrics } from "@/lib/biometrics";
 import { Fingerprint as FingerprintIcon } from "lucide-react";
@@ -20,8 +22,11 @@ const MySwal = withReactContent(Swal);
 
 export default function Settings() {
     const currentUser = db.getCurrentUser();
+    const { data: remoteSettings, isLoading } = useSettings();
+    const { data: users, isLoading: isLoadingUsers } = useUsers();
+    const { updateSettings, updateUser } = useHRMSMutations();
+
     const [activeTab, setActiveTab] = useState("profile");
-    const [archivedCount, setArchivedCount] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=250&h=250&auto=format&fit=crop");
 
@@ -33,11 +38,21 @@ export default function Settings() {
         confirmPassword: ''
     });
 
-    const [systemSettings, setSystemSettings] = useState(db.getSystemSettings());
+    const [systemSettings, setSystemSettings] = useState({
+        companyName: remoteSettings?.companyName || 'BALIBAD STORE',
+        emailNotifications: remoteSettings?.emailNotifications ?? true,
+        biometricEnforced: remoteSettings?.biometricEnforced ?? true,
+        maintenanceMode: remoteSettings?.maintenanceMode ?? false,
+        autoBackup: remoteSettings?.autoBackup ?? true,
+        timezone: remoteSettings?.timezone || 'GMT+8 (Manila)'
+    });
 
     useEffect(() => {
-        setArchivedCount(db.getArchives().length);
-    }, []);
+        if (remoteSettings) {
+            setSystemSettings(remoteSettings);
+        }
+    }, [remoteSettings]);
+
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -46,7 +61,7 @@ export default function Settings() {
             reader.onloadend = () => {
                 const base64String = reader.result as string;
                 setAvatarUrl(base64String);
-                db.updateCurrentUser({ avatar: base64String });
+                updateUser.mutate({ id: currentUser!.id, data: { avatar: base64String } });
                 MySwal.fire({
                     title: 'Authentication Photo Updated',
                     text: 'Your security profile photograph has been successfully updated.',
@@ -65,7 +80,7 @@ export default function Settings() {
             return MySwal.fire({ title: 'Invalid Name', text: 'Name cannot be empty.', icon: 'error' });
         }
 
-        db.updateCurrentUser({ name: profile.name });
+        updateUser.mutate({ id: currentUser!.id, data: { name: profile.name } });
 
         MySwal.fire({
             title: 'Identity Updated',
@@ -76,31 +91,10 @@ export default function Settings() {
         });
     };
 
-    const handleArchiveTrigger = () => {
-        MySwal.fire({
-            title: 'Initialize Archiving?',
-            text: "This will move attendance records older than 2 months to cold storage.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Archive Data',
-            confirmButtonColor: '#6366f1'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const count = db.archiveData('attendance');
-                setArchivedCount(db.getArchives().length);
-
-                MySwal.fire({
-                    title: 'Archive Successful',
-                    text: `${count} records have been moved to the vault.`,
-                    icon: 'success'
-                });
-            }
-        });
-    };
 
     const handleSave = (section: string) => {
         if (section === 'System Preferences') {
-            db.updateSystemSettings(systemSettings);
+            updateSettings.mutate(systemSettings);
         }
 
         MySwal.fire({
@@ -114,6 +108,7 @@ export default function Settings() {
         });
     };
 
+    if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
     if (!currentUser) return null;
 
     const navItems = [
@@ -121,7 +116,7 @@ export default function Settings() {
         { id: 'security', label: 'Security Levels', icon: Shield },
         ...(currentUser.role === 'admin' || currentUser.role === 'hr' ? [
             { id: 'system', label: 'System Config', icon: AppWindow },
-            { id: 'data', label: 'Data Archiving', icon: Database },
+            { id: 'users', label: 'User Manager', icon: Users },
         ] : []),
     ];
 
@@ -336,66 +331,88 @@ export default function Settings() {
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent value="data" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <TabsContent value="users" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                                 <Card className="border-none shadow-premium overflow-hidden bg-white/80 backdrop-blur-md">
-                                    <CardHeader className="border-b">
+                                    <CardHeader className="border-b bg-primary/5">
                                         <CardTitle className="flex items-center gap-2">
-                                            <Database className="h-5 w-5 text-primary" /> Data Archiving Protocol
+                                            <Users className="h-5 w-5 text-primary" /> Active Session Monitor
                                         </CardTitle>
-                                        <CardDescription className="font-bold italic">Manage historical record preservation.</CardDescription>
+                                        <CardDescription className="font-bold italic">Real-time tracking of staff system interactions.</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="py-10 space-y-8">
-                                        <div className="flex flex-col items-center text-center space-y-4">
-                                            <div className="h-24 w-24 rounded-3xl bg-primary/10 flex items-center justify-center border-2 border-primary/20 shadow-inner">
-                                                <Database className="h-12 w-12 text-primary animate-pulse" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-bold">Cold Storage Interface</h3>
-                                                <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                                                    Current Vault Status: <span className="text-primary font-bold">{archivedCount > 0 ? 'Active' : 'Standby'}</span>
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <div className="p-6 rounded-2xl bg-muted/30 border border-muted/50 space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Vaulted Records</span>
-                                                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                                                </div>
-                                                <p className="text-3xl font-bold">{archivedCount}</p>
-                                                <p className="text-[10px] text-muted-foreground italic">Encrypted attendance and payroll logs.</p>
-                                            </div>
-                                            <div className="p-6 rounded-2xl bg-muted/30 border border-muted/50 space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Last Archive</span>
-                                                    <Globe className="h-4 w-4 text-primary" />
-                                                </div>
-                                                <p className="text-xl font-bold">Today, {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                                <p className="text-[10px] text-muted-foreground italic">Automatic daily sync is enabled.</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-6">
-                                            <div className="space-y-1">
-                                                <h4 className="font-bold text-primary">Manual Optimization</h4>
-                                                <p className="text-xs text-muted-foreground italic">Trigger an immediate archival scrub of records older than 60 days.</p>
-                                            </div>
-                                            <Button onClick={handleArchiveTrigger} className="font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                                                Trigger Archival
-                                            </Button>
+                                    <CardContent className="p-0">
+                                        <div className="max-h-[500px] overflow-y-auto">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead className="sticky top-0 bg-muted/50 backdrop-blur-sm z-10 border-b">
+                                                    <tr>
+                                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Personnel</th>
+                                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Role/Division</th>
+                                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</th>
+                                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Last Access</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {isLoadingUsers ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="px-6 py-12 text-center">
+                                                                <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+                                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Fetching personnel data...</p>
+                                                            </td>
+                                                        </tr>
+                                                    ) : users?.filter(u => u.role === 'hr').length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="px-6 py-12 text-center">
+                                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">No staff sessions recorded.</p>
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        users?.filter(u => u.role === 'hr').map((user, idx) => (
+                                                            <tr key={user.id} className={cn("border-b last:border-0 hover:bg-primary/5 transition-colors group", idx % 2 === 0 ? "bg-white/40" : "bg-transparent")}>
+                                                                <td className="px-6 py-4">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs ring-2 ring-white shadow-sm group-hover:scale-110 transition-transform">
+                                                                            {user.name.split(' ').map(n => n[0]).join('')}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-sm font-bold text-foreground/80">{user.name}</p>
+                                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase">{user.position}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4">
+                                                                    <p className="text-xs font-bold text-muted-foreground">{user.department}</p>
+                                                                </td>
+                                                                <td className="px-6 py-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={cn(
+                                                                            "h-2 w-2 rounded-full shadow-sm",
+                                                                            user.isOnline ? "bg-emerald-500 animate-pulse shadow-emerald-500/40" : "bg-muted-foreground/30 shadow-none"
+                                                                        )} />
+                                                                        <span className={cn(
+                                                                            "text-[10px] font-black uppercase tracking-widest",
+                                                                            user.isOnline ? "text-emerald-600" : "text-muted-foreground/60"
+                                                                        )}>
+                                                                            {user.isOnline ? "Active Now" : "Offline"}
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    <p className="text-xs font-mono font-bold text-muted-foreground/60">
+                                                                        {user.lastLogin || 'No recorded access'}
+                                                                    </p>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </CardContent>
-                                    <CardFooter className="bg-muted/10 border-t flex items-center justify-between p-6">
-                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-2 italic">
-                                            <Shield className="h-3 w-3" /> Data is AES-256 Encrypted on Archive
-                                        </p>
-                                        <Button variant="ghost" className="text-destructive font-bold hover:bg-destructive/10">
-                                            <Trash2 className="mr-2 h-4 w-4" /> Purge Permanent Cache
-                                        </Button>
+                                    <CardFooter className="bg-muted/10 border-t p-4 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-[0.2em] italic">
+                                        Data updates automatically during system check-ins.
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
+
                         </Tabs>
                     </div>
                 </div>

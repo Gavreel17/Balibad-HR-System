@@ -10,6 +10,8 @@ import { Download, Printer, Coins, FileText, Search, CreditCard, Wallet, Trendin
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { db, User } from "@/lib/db";
+import { useUsers, useCashAdvances, useAttendance } from "@/hooks/use-hrms";
+import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import Swal from 'sweetalert2';
@@ -23,8 +25,10 @@ export default function Payroll() {
   const [selectedPayslip, setSelectedPayslip] = useState<User | null>(null);
   const [isBatchPrinting, setIsBatchPrinting] = useState(false);
 
-  const users = db.getUsers().filter(u => u.status === 'active');
-  const cashAdvances = db.getCashAdvanceRequests();
+  const { data: allUsers, isLoading: usersLoading } = useUsers();
+  const { data: cashAdvances, isLoading: caLoading } = useCashAdvances();
+  const { data: attendance, isLoading: attLoading } = useAttendance();
+
   const currentUser = db.getCurrentUser();
   const [, setLocation] = useLocation();
 
@@ -38,6 +42,20 @@ export default function Payroll() {
 
   if (!currentUser || currentUser.role === 'employee') return null;
 
+  if (usersLoading || caLoading || attLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[600px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!allUsers || !cashAdvances || !attendance) return null;
+
+  const users = allUsers.filter(u => u.status === 'active' && u.isEmployee);
+
   // Helper Calculations
   const calcMonthlyGross = (annual: number) => annual / 12;
 
@@ -49,7 +67,7 @@ export default function Payroll() {
 
   const getAbsenceDeduction = (userId: string, salary: number) => {
     const currentMonthPrefix = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-    const absences = db.getAttendance().filter(a =>
+    const absences = attendance.filter(a =>
       a.userId === userId &&
       a.status === 'absent' &&
       a.date.startsWith(currentMonthPrefix)
@@ -83,29 +101,6 @@ export default function Payroll() {
   }, 0);
   const totalNet = totalGross - totalDeductions;
 
-  const handleRunPayroll = () => {
-    MySwal.fire({
-      title: 'Initialize Payroll?',
-      text: `Process payments for ${filteredUsers.length} employees? Total: ₱${totalNet.toLocaleString()}`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Confirm Payments',
-      confirmButtonColor: '#10b981'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        db.addActivity({
-          type: 'payroll',
-          avatar: currentUser.name.split(' ').map(n => n[0]).join(''),
-          user: currentUser.name,
-          action: 'processed',
-          target: `payroll for ${filteredUsers.length} employees`,
-          time: 'Just now'
-        });
-
-        MySwal.fire('Success!', 'Payroll data has been recorded and tasks sent to Finance.', 'success');
-      }
-    });
-  };
 
   const handlePrint = (userId: string) => {
     // For prototype, we'll trigger a browser print
@@ -143,7 +138,7 @@ export default function Payroll() {
     }).then(() => {
       MySwal.fire({
         title: 'PDF Downloaded',
-        text: `PAYSLIP_FEB2026_${user.id}.pdf has been saved.`,
+        text: `PAYSLIP_${new Date().toLocaleString([], { month: 'short', year: 'numeric' }).toUpperCase()}_${user.id}.pdf has been saved.`,
         icon: 'success'
       });
     });
@@ -190,10 +185,6 @@ export default function Payroll() {
               <Printer className="mr-2 h-4 w-4" />
               Batch Print
             </Button>
-            <Button onClick={handleRunPayroll} className="bg-primary hover:bg-primary/90 shadow-lg transition-all hover:scale-105">
-              <Coins className="mr-2 h-4 w-4" />
-              Run Payroll
-            </Button>
           </div>
         </div>
 
@@ -239,7 +230,9 @@ export default function Payroll() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Feb 28, 2026</div>
+              <div className="text-2xl font-bold">
+                {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">End of Month (Monthly)</p>
             </CardContent>
           </Card>
@@ -337,7 +330,7 @@ export default function Payroll() {
                 <div className="flex items-center justify-between pr-4">
                   <div>
                     <DialogTitle className="text-2xl">Electronic Payslip</DialogTitle>
-                    <DialogDescription>Monthly Payroll Cycle: Feb 2026</DialogDescription>
+                    <DialogDescription>Monthly Payroll Cycle: {new Date().toLocaleString([], { month: 'short', year: 'numeric' })}</DialogDescription>
                   </div>
                   <Coins className="h-8 w-8 text-primary opacity-20" />
                 </div>
@@ -359,6 +352,9 @@ export default function Payroll() {
                   <div className="text-right">
                     <p className="text-muted-foreground font-medium">Department</p>
                     <p className="font-bold">{selectedPayslip.department}</p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-muted/20">
+                    <p className="text-muted-foreground font-medium text-xs">Date Issued: <span className="text-foreground font-bold">{new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}</span></p>
                   </div>
                 </div>
 
@@ -384,7 +380,7 @@ export default function Payroll() {
                     )}
                     {getAbsenceDeduction(selectedPayslip.id, selectedPayslip.salary) > 0 && (
                       <div className="flex justify-between font-medium text-red-500">
-                        <span>Absence Deductions ({db.getAttendance().filter(a => a.userId === selectedPayslip.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
+                        <span>Absence Deductions ({attendance.filter(a => a.userId === selectedPayslip.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
                         <span className="font-mono">-₱{getAbsenceDeduction(selectedPayslip.id, selectedPayslip.salary).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
@@ -428,9 +424,15 @@ export default function Payroll() {
                   <h1 className="text-3xl font-black uppercase tracking-tighter">BALIBAD STORE</h1>
                   <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Electronic Payroll Record</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Period Ending</p>
-                  <p className="text-xl font-bold">Feb 28, 2026</p>
+                <div className="text-right flex flex-col gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Period Ending</p>
+                    <p className="text-lg font-bold">{new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Date Issued</p>
+                    <p className="text-lg font-bold">{new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
                 </div>
               </div>
 
@@ -459,7 +461,7 @@ export default function Payroll() {
                     <span className="font-mono">-₱{data.advance.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Absence Deductions ({db.getAttendance().filter(a => a.userId === user.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
+                    <span>Absence Deductions ({attendance.filter(a => a.userId === user.id && a.status === 'absent' && a.date.startsWith(new Date().toISOString().substring(0, 7))).length} days)</span>
                     <span className="font-mono">-₱{data.absences.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>

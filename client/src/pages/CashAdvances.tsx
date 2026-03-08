@@ -8,18 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Check, X, Trash } from "lucide-react";
+import { Plus, Check, X, Trash, Loader2 } from "lucide-react";
 import { db, CashAdvanceRequest } from "@/lib/db";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import { useUsers, useCashAdvances, useHRMSMutations } from "@/hooks/use-hrms";
 
 const MySwal = withReactContent(Swal);
 
 export default function CashAdvancesPage() {
     const currentUser = db.getCurrentUser();
-    if (!currentUser) return null;
 
-    const [requests, setRequests] = useState(db.getCashAdvanceRequests());
+    const { data: requests = [], isLoading: caLoading } = useCashAdvances();
+    const { data: allUsers = [], isLoading: usersLoading } = useUsers();
+    const { addCashAdvance, updateCashAdvanceStatus, deleteCashAdvance, addActivity } = useHRMSMutations();
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newRequest, setNewRequest] = useState({
         name: '',
@@ -30,7 +33,19 @@ export default function CashAdvancesPage() {
     const [nameSuggestions, setNameSuggestions] = useState<{ id: string; name: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const allEmployees = db.getUsers().filter(u => u.isEmployee);
+    if (!currentUser) return null;
+
+    if (caLoading || usersLoading) {
+        return (
+            <DashboardLayout>
+                <div className="flex items-center justify-center h-[600px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    const allEmployees = allUsers.filter(u => u.isEmployee);
 
     const handleNameInput = (value: string) => {
         setNewRequest({ ...newRequest, name: value });
@@ -61,7 +76,7 @@ export default function CashAdvancesPage() {
     // Filter requests based on role
     // Admin/HR sees all, Employees see only theirs
     const visibleRequests = isAdminOrHR
-        ? requests
+        ? requests.filter(r => allUsers.find(u => u.id === r.userId)?.isEmployee)
         : requests.filter(r => r.userId === currentUser.id);
 
     const handleSubmitRequest = () => {
@@ -70,8 +85,7 @@ export default function CashAdvancesPage() {
             return;
         }
 
-        const request: CashAdvanceRequest = {
-            id: `ca-${Date.now()}`,
+        const request: Partial<CashAdvanceRequest> = {
             userId: selectedUserId || currentUser.id,
             amount: parseFloat(newRequest.amount),
             purpose: newRequest.purpose,
@@ -79,38 +93,37 @@ export default function CashAdvancesPage() {
             status: 'pending'
         };
 
-        db.addCashAdvanceRequest(request);
+        addCashAdvance.mutate(request);
 
         // Send notification to admin
         if (currentUser.role !== 'admin') {
-            db.addActivity({
+            addActivity.mutate({
                 type: 'cash_advance',
                 avatar: currentUser.name.split(' ').map(n => n[0]).join(''),
                 user: currentUser.name,
                 action: 'requested',
-                target: `cash advance of ₱${request.amount.toLocaleString()}`,
+                target: `cash advance of ₱${request.amount!.toLocaleString()}`,
                 time: 'Just now'
             });
         }
 
-        setRequests(db.getCashAdvanceRequests());
         setNewRequest({ name: '', amount: '', purpose: '' });
         setSelectedUserId('');
         setIsDialogOpen(false);
 
         MySwal.fire({
-            title: 'Success!',
-            text: 'Cash advance request submitted.',
+            title: 'Submitted!',
+            text: 'Cash advance request sent for approval.',
             icon: 'success'
         });
     };
 
-    const handleUpdateStatus = (id: string, status: CashAdvanceRequest['status']) => {
-        db.updateCashAdvanceStatus(id, status);
+    const handleUpdateStatus = (id: string, status: string) => {
+        updateCashAdvanceStatus.mutate({ id, status });
 
         const request = requests.find(r => r.id === id);
         if (request) {
-            db.addActivity({
+            addActivity.mutate({
                 type: 'cash_advance',
                 avatar: currentUser.name.split(' ').map(n => n[0]).join(''),
                 user: currentUser.name,
@@ -120,7 +133,6 @@ export default function CashAdvancesPage() {
             });
         }
 
-        setRequests(db.getCashAdvanceRequests());
         MySwal.fire('Updated!', `Request has been ${status}.`, 'success');
     };
 
@@ -133,15 +145,14 @@ export default function CashAdvancesPage() {
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                db.deleteCashAdvanceRequest(id);
-                setRequests(db.getCashAdvanceRequests());
-                MySwal.fire('Deleted!', 'Request has been deleted.', 'success');
+                deleteCashAdvance.mutate(id);
+                MySwal.fire('Deleted!', 'Request has been removed.', 'success');
             }
         });
     };
 
     const getUserName = (userId: string) => {
-        const user = db.getUsers().find(u => u.id === userId);
+        const user = allUsers.find(u => u.id === userId);
         return user ? user.name : 'Unknown User';
     };
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { Clock, CalendarCheck, CalendarOff, History, Wallet, Plane, Gift, ArrowRight } from "lucide-react";
+import { Clock, CalendarCheck, CalendarOff, History, Wallet, Plane, Gift, ArrowRight, Loader2 } from "lucide-react";
 import { db, User } from "@/lib/db";
+import { useMemo, useEffect } from "react";
+import { useAttendance, useCashAdvances, useHRMSMutations } from "@/hooks/use-hrms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,11 +26,23 @@ interface StaffDashboardProps {
 }
 
 export function StaffDashboard({ user }: StaffDashboardProps) {
-    const [cashAdvances, setCashAdvances] = useState(() => db.getCashAdvanceRequests().filter(ca => ca.userId === user.id));
-    const presentDays = db.getAttendance().filter(a => a.userId === user.id && a.status === 'present').length;
-    const lateDays = db.getAttendance().filter(a => a.userId === user.id && a.status === 'late').length;
-    const pendingAdvances = cashAdvances.filter(ca => ca.status === 'pending').length;
-    const leaveBalance = db.getLeaveBalance(user.id);
+    const { data: attendance = [], isLoading: isLoadingAttendance } = useAttendance();
+    const { data: allCashAdvances = [], isLoading: isLoadingAdvances } = useCashAdvances();
+    const { addCashAdvanceRequest, addActivity } = useHRMSMutations();
+
+    const userAttendance = useMemo(() => attendance.filter(a => a.userId === user.id), [attendance, user.id]);
+    const userCashAdvances = useMemo(() => allCashAdvances.filter(ca => ca.userId === user.id), [allCashAdvances, user.id]);
+
+
+    const stats = useMemo(() => {
+        const presentDays = userAttendance.filter(a => a.status === 'present').length;
+        const lateDays = userAttendance.filter(a => a.status === 'late').length;
+        const pendingAdvances = userCashAdvances.filter(ca => ca.status === 'pending').length;
+
+        return { presentDays, lateDays, pendingAdvances };
+    }, [userAttendance, userCashAdvances]);
+
+    const { presentDays, lateDays, pendingAdvances } = stats;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newRequest, setNewRequest] = useState({
@@ -51,12 +65,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             status: 'pending'
         };
 
-        db.addCashAdvanceRequest(request);
-        setCashAdvances(db.getCashAdvanceRequests().filter(ca => ca.userId === user.id));
+        addCashAdvanceRequest.mutate(request);
 
         // Send notification to admin if requested by non-admin
         if (user.role !== 'admin') {
-            db.addActivity({
+            addActivity.mutate({
                 type: 'cash_advance',
                 avatar: user.name.split(' ').map((n: string) => n[0]).join(''),
                 user: user.name,
@@ -75,6 +88,10 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             icon: 'success'
         });
     };
+
+    if (isLoadingAttendance || isLoadingAdvances) {
+        return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+    }
 
     return (
         <DashboardLayout>
@@ -102,83 +119,47 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                     <StatsCard
-                        title="Monthly Attendance"
-                        value="98.5%"
-                        description="Excellent consistency"
+                        title="Daily Status"
+                        value={userAttendance.find(a => a.date === new Date().toISOString().split('T')[0]) ? "Present" : "Not Logged"}
+                        description="Today's activity"
                         icon={CalendarCheck}
-                        trend="up"
-                        trendValue="+0.5%"
                     />
                     <StatsCard
                         title="Days On-Site"
                         value={presentDays.toString()}
-                        description="Current billing cycle"
+                        description="Current month logs"
                         icon={Clock}
-                        trend="neutral"
-                        trendValue="Active"
                     />
                     <StatsCard
                         title="Late Records"
                         value={lateDays.toString()}
-                        description="Needs improvement"
+                        description="Current cycle"
                         icon={History}
-                        trend={lateDays > 0 ? "down" : "neutral"}
-                        trendValue={lateDays > 0 ? "+1" : "0"}
                     />
                     <StatsCard
                         title="Cash Requests"
                         value={pendingAdvances.toString()}
                         description="Processing status"
                         icon={Wallet}
-                        trend="neutral"
-                        trendValue="Pending"
                     />
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    {/* Left Column: Leave & Progress */}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {/* Left Column: Summary */}
                     <div className="space-y-6">
-                        <Card className="border-none shadow-premium bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/10">
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Plane className="h-5 w-5 text-indigo-600" />
-                                        <CardTitle className="text-lg">Leave Credits</CardTitle>
-                                    </div>
-                                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full">{leaveBalance.total - leaveBalance.used} Left</span>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground font-medium">Vacation & Sick Leave</span>
-                                        <span className="font-bold">{leaveBalance.used} / {leaveBalance.total} Days</span>
-                                    </div>
-                                    <Progress value={(leaveBalance.used / leaveBalance.total) * 100} className="h-2 bg-indigo-100" />
-                                </div>
-                                <Button variant="secondary" className="w-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-none">
-                                    Request Time Off
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-none shadow-premium overflow-hidden">
-                            <CardHeader className="bg-amber-50 dark:bg-amber-900/10 pb-4">
+                        <Card className="border-none shadow-premium overflow-hidden h-full">
+                            <CardHeader className="bg-primary/5 pb-4">
                                 <div className="flex items-center gap-2">
-                                    <Gift className="h-5 w-5 text-amber-600" />
-                                    <CardTitle className="text-lg">Upcoming Holiday</CardTitle>
+                                    <Clock className="h-5 w-5 text-primary" />
+                                    <CardTitle className="text-lg">Recent Summary</CardTitle>
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-4">
-                                <div className="flex items-start gap-4">
-                                    <div className="bg-amber-100 text-amber-600 p-3 rounded-2xl text-center min-w-[60px]">
-                                        <span className="block text-xs font-bold uppercase">Feb</span>
-                                        <span className="text-2xl font-bold">25</span>
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-amber-900 dark:text-amber-100">EDSA People Power Revolution Anniversary</p>
-                                        <p className="text-xs text-amber-700/70 mt-1 font-medium italic">Regular Holiday</p>
-                                    </div>
+                            <CardContent className="pt-6">
+                                <p className="text-sm text-muted-foreground font-medium italic">Your latest system activity and attendance logs are displayed here.</p>
+                                <div className="mt-8 p-6 rounded-3xl bg-primary/5 border border-primary/10">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Performance Goal</h4>
+                                    <p className="text-xl font-bold text-foreground">Perfect Attendance</p>
+                                    <p className="text-xs text-muted-foreground mt-1 italic">Maintain high consistency for quality service.</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -199,7 +180,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {db.getAttendance().filter(a => a.userId === user.id).slice(0, 5).map((record) => (
+                                {userAttendance.slice(0, 5).map((record) => (
                                     <div key={record.id} className="flex items-center justify-between p-3 rounded-xl border border-transparent hover:border-primary/10 hover:bg-primary/5 transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className={`h-10 w-10 rounded-full flex items-center justify-center ${record.status === 'present' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
@@ -216,7 +197,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                         </div>
                                     </div>
                                 ))}
-                                {db.getAttendance().filter(a => a.userId === user.id).length === 0 && (
+                                {userAttendance.length === 0 && (
                                     <div className="text-center py-10 space-y-2">
                                         <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                                             <History className="h-6 w-6 text-muted-foreground" />
@@ -286,7 +267,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {cashAdvances.slice(0, 5).map((req) => (
+                                {userCashAdvances.slice(0, 5).map((req) => (
                                     <div key={req.id} className="p-4 rounded-2xl border bg-muted/30 border-muted/50">
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="font-bold text-sm block truncate w-32 capitalize">{req.purpose}</span>
@@ -304,7 +285,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                         </div>
                                     </div>
                                 ))}
-                                {cashAdvances.length === 0 && (
+                                {userCashAdvances.length === 0 && (
                                     <div className="text-center py-10 space-y-2">
                                         <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                                             <Wallet className="h-5 w-5 text-muted-foreground" />

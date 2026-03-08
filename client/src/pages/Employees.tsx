@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useUsers, useHRMSMutations } from "@/hooks/use-hrms";
+import { Loader2 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { cn } from "@/lib/utils";
@@ -30,18 +32,9 @@ const MySwal = withReactContent(Swal);
 export default function Employees() {
   const currentUser = db.getCurrentUser();
   const [, setLocation] = useLocation();
+  const { data: allUsers = [], isLoading } = useUsers();
+  const { addUser, updateUser, deleteUser } = useHRMSMutations();
 
-  useEffect(() => {
-    if (!currentUser) {
-      setLocation("/");
-    } else if (currentUser.role === 'employee') {
-      setLocation("/dashboard");
-    }
-  }, [currentUser, setLocation]);
-
-  if (!currentUser || currentUser.role === 'employee') return null;
-
-  const [users, setUsers] = useState(db.getUsers().filter(u => u.isEmployee));
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,20 +51,35 @@ export default function Employees() {
     status: 'active'
   });
 
+  useEffect(() => {
+    if (!currentUser) {
+      setLocation("/");
+    } else if (currentUser.role !== 'admin') {
+      setLocation("/dashboard");
+    }
+  }, [currentUser, setLocation]);
+
+  const users = useMemo(() => allUsers.filter(u => u.isEmployee), [allUsers]);
+
+  if (!currentUser || currentUser.role !== 'admin') return null;
+  if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+
   const handleAddEmployee = () => {
     if (newEmployee.name && newEmployee.email && newEmployee.branch && newEmployee.department) {
       if (editingId) {
-        // Update existing
-        db.updateUser(editingId, {
-          name: newEmployee.name,
-          email: newEmployee.email,
-          department: newEmployee.department,
-          position: newEmployee.position,
-          salary: parseFloat(newEmployee.salary),
-          branch: newEmployee.branch,
-          address: newEmployee.address,
-          contactNumber: newEmployee.contactNumber,
-          status: newEmployee.status as 'active' | 'on_leave' | 'terminated'
+        updateUser.mutate({
+          id: editingId,
+          data: {
+            name: newEmployee.name,
+            email: newEmployee.email,
+            department: newEmployee.department,
+            position: newEmployee.position,
+            salary: parseFloat(newEmployee.salary),
+            branch: newEmployee.branch,
+            address: newEmployee.address,
+            contactNumber: newEmployee.contactNumber,
+            status: newEmployee.status as 'active' | 'terminated'
+          }
         });
         MySwal.fire({
           title: 'Updated!',
@@ -94,13 +102,13 @@ export default function Employees() {
           position: newEmployee.position || (newEmployee.role === 'admin' ? 'System Administrator' : newEmployee.role === 'hr' ? 'HR Manager' : 'Staff Member'),
           joinDate: new Date().toISOString().split('T')[0],
           salary: parseFloat(newEmployee.salary) || 30000,
-          status: newEmployee.status as 'active' | 'on_leave' | 'terminated',
+          status: newEmployee.status as 'active' | 'terminated',
           branch: newEmployee.branch,
           address: newEmployee.address,
           contactNumber: newEmployee.contactNumber,
           isEmployee: true
         };
-        db.addUser(employee);
+        addUser.mutate(employee);
         MySwal.fire({
           title: 'Success!',
           text: `New employee added successfully with ID ${nextId}.`,
@@ -109,7 +117,6 @@ export default function Employees() {
         });
       }
     }
-    setUsers(db.getUsers().filter(u => u.isEmployee));
     resetForm();
     setIsAddDialogOpen(false);
   }
@@ -159,8 +166,7 @@ export default function Employees() {
       confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
       if (result.isConfirmed) {
-        db.deleteUser(id);
-        setUsers(db.getUsers().filter(u => u.isEmployee));
+        deleteUser.mutate(id);
         MySwal.fire(
           'Deleted!',
           'Employee has been deleted.',
@@ -216,7 +222,6 @@ export default function Employees() {
   const stats = [
     { label: 'Total Team', value: users.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-500/10' },
     { label: 'Active', value: users.filter(u => u.status === 'active').length, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10' },
-    { label: 'On Leave', value: users.filter(u => u.status === 'on_leave').length, icon: CalendarDays, color: 'text-amber-600', bg: 'bg-amber-500/10' },
     { label: 'Offboarded', value: users.filter(u => u.status === 'terminated').length, icon: Award, color: 'text-red-600', bg: 'bg-red-500/10' },
   ];
 
@@ -306,7 +311,6 @@ export default function Employees() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="on_leave">On Leave</SelectItem>
                         <SelectItem value="terminated">Terminated</SelectItem>
                       </SelectContent>
                     </Select>
@@ -396,15 +400,14 @@ export default function Employees() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={user.status === 'active' ? 'default' : user.status === 'on_leave' ? 'secondary' : 'destructive'}
+                        variant={user.status === 'active' ? 'default' : 'destructive'}
                         className={cn(
                           "capitalize px-3 py-0.5 rounded-full text-[10px] font-bold shadow-sm border mt-1",
                           user.status === 'active' ? "bg-green-50 border-green-200 text-green-700" :
-                            user.status === 'on_leave' ? "bg-amber-50 border-amber-200 text-amber-700" :
-                              "bg-red-50 border-red-200 text-red-700"
+                            "bg-red-50 border-red-200 text-red-700"
                         )}
                       >
-                        {user.status.replace('_', ' ')}
+                        {user.status === 'active' ? 'Active' : 'Terminated'}
                       </Badge>
                     </TableCell>
                     <TableCell>

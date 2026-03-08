@@ -19,7 +19,11 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Login} />
+      <Route path="/admin-login" component={Login} />
+      <Route path="/staff-login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/admin-register" component={Register} />
+      <Route path="/staff-register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/employees" component={Employees} />
       <Route path="/documents" component={Documents} />

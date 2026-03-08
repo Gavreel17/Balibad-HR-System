@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useAttendance, useUsers, useHRMSMutations, useSettings } from "@/hooks/use-hrms";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +19,10 @@ import { verifyBiometrics } from "@/lib/biometrics";
 const MySwal = withReactContent(Swal);
 
 export default function AttendancePage() {
-    const [attendance, setAttendance] = useState(db.getAttendance());
+    const { data: attendance = [], isLoading: isLoadingAttendance } = useAttendance();
+    const { data: users = [], isLoading: isLoadingUsers } = useUsers();
+    const { data: settings, isLoading: isLoadingSettings } = useSettings();
+    const { addAttendance, updateAttendance, addActivity } = useHRMSMutations();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState("");
     const [viewingStatus, setViewingStatus] = useState<'present' | 'late' | 'absent' | null>(null);
@@ -57,8 +61,8 @@ export default function AttendancePage() {
                 timeIn: timeString,
                 status: isLate ? 'late' : 'present'
             };
-            db.addAttendance(newRecord);
-            db.addActivity({
+            addAttendance.mutate(newRecord);
+            addActivity.mutate({
                 type: 'attendance',
                 avatar: currentUser!.name.split(' ').map(n => n[0]).join(''),
                 user: currentUser!.name,
@@ -69,8 +73,8 @@ export default function AttendancePage() {
         } else {
             const currentRecord = attendance.find(a => a.userId === currentUser!.id && a.date === today && !a.timeOut);
             if (currentRecord) {
-                db.updateAttendance(currentRecord.id, { timeOut: timeString });
-                db.addActivity({
+                updateAttendance.mutate({ id: currentRecord.id, data: { timeOut: timeString } });
+                addActivity.mutate({
                     type: 'attendance',
                     avatar: currentUser!.name.split(' ').map(n => n[0]).join(''),
                     user: currentUser!.name,
@@ -80,8 +84,6 @@ export default function AttendancePage() {
                 });
             }
         }
-
-        setAttendance(db.getAttendance());
     };
 
     const runBiometricScan = async () => {
@@ -92,14 +94,13 @@ export default function AttendancePage() {
         const isCurrentlyIn = attendance.some(a => a.userId === currentUser?.id && a.date === today);
         const mode = isCurrentlyIn ? 'out' : 'in';
 
-        const settings = db.getSystemSettings();
         const hasFingerprint = !!currentUser?.biometricCredential;
 
         try {
             if (hasFingerprint) {
                 setScannerMessage("Validating fingerprint with secure enclave...");
                 await verifyBiometrics(currentUser.biometricCredential!);
-            } else if (settings.biometricEnforced) {
+            } else if (settings?.biometricEnforced) {
                 // If enforced and no fingerprint, fail the scan
                 throw new Error("Biometric verification is ENFORCED. Please register your fingerprint in Settings first.");
             } else {
@@ -152,33 +153,48 @@ export default function AttendancePage() {
         runBiometricScan();
     };
 
-    const getEmployeeName = (userId: string) => {
-        return db.getUsers().find(u => u.id === userId)?.name || 'Unknown';
-    };
-
-    const filteredAttendance = attendance.filter(a => {
-        const matchesUser = isAdminOrHR || a.userId === currentUser?.id;
-        const name = getEmployeeName(a.userId).toLowerCase();
-        const matchesSearch = name.includes(searchTerm.toLowerCase()) || a.date.includes(searchTerm);
-        return matchesUser && matchesSearch;
-    });
-
-    const todaysRecords = attendance.filter(a => a.date === today);
-    const presentToday = todaysRecords.filter(a => a.status === 'present').length;
-    const lateToday = todaysRecords.filter(a => a.status === 'late').length;
-    const activeStaff = db.getUsers().filter(u => u.status === 'active').length;
-    const absentToday = Math.max(0, activeStaff - todaysRecords.length);
-
-    const isCurrentTimedIn = attendance.some(a => a.userId === currentUser?.id && a.date === today);
-    const isCurrentTimedOut = attendance.some(a => a.userId === currentUser?.id && a.date === today && a.timeOut);
-
     const getViewingList = () => {
         const timedInIds = todaysRecords.map(a => a.userId);
-        if (viewingStatus === 'present') return todaysRecords.filter(a => a.status === 'present').map(a => db.getUsers().find(u => u.id === a.userId)).filter(Boolean) as User[];
-        if (viewingStatus === 'late') return todaysRecords.filter(a => a.status === 'late').map(a => db.getUsers().find(u => u.id === a.userId)).filter(Boolean) as User[];
-        if (viewingStatus === 'absent') return db.getUsers().filter(u => u.status === 'active' && !timedInIds.includes(u.id));
+        const employeesOnly = users.filter(u => u.isEmployee);
+        if (viewingStatus === 'present') return todaysRecords.filter(a => a.status === 'present').map(a => employeesOnly.find(u => u.id === a.userId)).filter(Boolean) as User[];
+        if (viewingStatus === 'late') return todaysRecords.filter(a => a.status === 'late').map(a => employeesOnly.find(u => u.id === a.userId)).filter(Boolean) as User[];
+        if (viewingStatus === 'absent') return employeesOnly.filter(u => u.status === 'active' && !timedInIds.includes(u.id));
         return [];
     };
+
+    const getEmployeeName = (userId: string) => {
+        return users.find(u => u.id === userId)?.name || 'Unknown';
+    };
+
+    const filteredAttendance = useMemo(() => {
+        return attendance.filter(a => {
+            const user = users.find(u => u.id === a.userId);
+            if (!user?.isEmployee) return false;
+            const matchesUser = isAdmin || a.userId === currentUser?.id;
+            const name = user.name.toLowerCase();
+            const matchesSearch = name.includes(searchTerm.toLowerCase()) || a.date.includes(searchTerm);
+            return matchesUser && matchesSearch;
+        });
+    }, [attendance, isAdminOrHR, currentUser?.id, searchTerm, users]);
+
+    const todaysRecords = useMemo(() => attendance.filter(a => a.date === today), [attendance, today]);
+
+    const stats = useMemo(() => {
+        const employeeIds = users.filter(u => u.isEmployee).map(u => u.id);
+        const employeeRecordsToday = todaysRecords.filter(a => employeeIds.includes(a.userId));
+
+        const presentToday = isAdmin ? employeeRecordsToday.filter(a => a.status === 'present').length : (attendance.some(a => a.userId === currentUser?.id && a.date === today && a.status === 'present') ? 1 : 0);
+        const lateToday = isAdmin ? employeeRecordsToday.filter(a => a.status === 'late').length : (attendance.some(a => a.userId === currentUser?.id && a.date === today && a.status === 'late') ? 1 : 0);
+        const activeStaffCount = isAdmin ? users.filter(u => u.status === 'active' && u.isEmployee).length : 1;
+        const absentToday = isAdmin ? Math.max(0, activeStaffCount - employeeRecordsToday.length) : (attendance.some(a => a.userId === currentUser?.id && a.date === today) ? 0 : 1);
+
+        const isCurrentTimedIn = attendance.some(a => a.userId === currentUser?.id && a.date === today);
+        const isCurrentTimedOut = attendance.some(a => a.userId === currentUser?.id && a.date === today && a.timeOut);
+
+        return { presentToday, lateToday, absentToday, isCurrentTimedIn, isCurrentTimedOut };
+    }, [todaysRecords, users, attendance, currentUser?.id, today, isAdmin]);
+
+    const { presentToday, lateToday, absentToday, isCurrentTimedIn, isCurrentTimedOut } = stats;
 
     if (!currentUser) return null;
 

@@ -16,46 +16,59 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [isLoading, setIsLoading] = useState(false);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+
+  const isStaffRegister = location === '/staff-register';
+  const selectedRole: UserRole = isStaffRegister ? 'hr' : 'admin';
+  const portalName = isStaffRegister ? 'Staff Registration' : 'Admin Registration';
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      const newUser = {
-        id: `U-${Math.floor(Math.random() * 900) + 100}`,
-        name,
-        email,
-        role: selectedRole,
-        department: selectedRole === 'admin' ? 'Management' : 'General',
-        position: selectedRole === 'admin' ? 'System Administrator' : 'Staff',
-        joinDate: new Date().toISOString().split('T')[0],
-        salary: selectedRole === 'admin' ? 80000 : 30000,
-        status: 'active' as const,
-        branch: 'Dimataling',
-        isEmployee: false
-      };
+    setTimeout(async () => {
+      try {
+        const newUser = {
+          id: `U-${Math.floor(Math.random() * 900) + 100}`,
+          name,
+          email,
+          role: selectedRole,
+          department: selectedRole === 'admin' ? 'Management' : 'General',
+          position: selectedRole === 'admin' ? 'System Administrator' : 'Staff',
+          joinDate: new Date().toISOString().split('T')[0],
+          salary: selectedRole === 'admin' ? 80000 : 30000,
+          status: 'active' as const,
+          branch: 'Dimataling',
+          isEmployee: false
+        };
 
-      db.addUser(newUser);
+        await db.addUser(newUser);
 
-      // Auto-login after registration
-      db.login(email, selectedRole);
+        // Auto-login after registration
+        await db.login(email, selectedRole);
 
-      MySwal.fire({
-        title: 'Welcome to BALIBAD STORE',
-        text: `Account provisioned successfully for ${name}. Accessing ${selectedRole === 'admin' ? 'ADMIN' : 'STAFF'} portal...`,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-      });
+        MySwal.fire({
+          title: 'Welcome to BALIBAD STORE',
+          text: `Account provisioned successfully for ${name}. Accessing ${selectedRole === 'admin' ? 'ADMIN' : 'STAFF'} portal...`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
 
-      setTimeout(() => {
-        setLocation("/dashboard");
+        setTimeout(() => {
+          setLocation("/dashboard");
+          setIsLoading(false);
+        }, 500);
+      } catch (error: any) {
         setIsLoading(false);
-      }, 500);
+        MySwal.fire({
+          title: 'Registration Failed',
+          text: error.message || 'An error occurred during account provisioning. Please try again or use a different email.',
+          icon: 'error',
+          confirmButtonColor: '#0f172a',
+        });
+      }
     }, 1200);
   };
 
@@ -66,36 +79,13 @@ export default function Register() {
           <div className="flex items-center justify-center mb-4">
             <img src={logo} alt="Balibad Store Logo" className="h-16 w-auto object-contain" />
           </div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight">System Registration</h1>
-          <p className="text-muted-foreground">Select your portal and create credentials</p>
+          <h1 className="text-3xl font-heading font-bold tracking-tight">{portalName}</h1>
+          <p className="text-muted-foreground">Fill in your details to create your {isStaffRegister ? 'staff' : 'admin'} credentials</p>
         </div>
 
         <Card className="border-none shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between mb-4 bg-muted p-1 rounded-lg">
-              <Button
-                type="button"
-                variant={selectedRole === 'admin' ? "default" : "ghost"}
-                className="flex-1 text-xs"
-                size="sm"
-                onClick={() => {
-                  setSelectedRole('admin');
-                }}
-              >
-                Admin Portal
-              </Button>
-              <Button
-                type="button"
-                variant={selectedRole === 'hr' ? "default" : "ghost"}
-                className="flex-1 text-xs font-bold"
-                size="sm"
-                onClick={() => {
-                  setSelectedRole('hr');
-                }}
-              >
-                Staff Portal
-              </Button>
-            </div>
+            {/* Role selector removed in favor of explicit routes */}
             <CardTitle>Create Account</CardTitle>
             <CardDescription>
               Registering for {selectedRole === 'admin' ? 'ADMINISTRATOR' : 'STAFF'} portal access
@@ -147,7 +137,7 @@ export default function Register() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4 border-t p-4 bg-muted/20">
             <p className="text-sm text-center text-muted-foreground">
-              Already have credentials? <Link href="/" className="text-primary hover:underline font-bold">Sign In Here</Link>
+              Already have credentials? <Link href={isStaffRegister ? "/staff-login" : "/admin-login"} className="text-primary hover:underline font-bold">Sign In Here</Link>
             </p>
           </CardFooter>
         </Card>

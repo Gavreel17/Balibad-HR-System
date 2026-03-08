@@ -104,6 +104,18 @@
   --sidebar-ring: 224 71% 4%;
 }
 
+/* Green sidebar variant for staff/employee role */
+.sidebar-green {
+  --sidebar: 141 71% 13%;
+  --sidebar-foreground: 138 76% 97%;
+  --sidebar-primary: 142 76% 45%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 141 60% 20%;
+  --sidebar-accent-foreground: 138 76% 95%;
+  --sidebar-border: 141 50% 22%;
+  --sidebar-ring: 142 76% 36%;
+}
+
 .dark {
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;

@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -27,20 +28,41 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
+// Yellow theme CSS variable overrides for staff/employee role
+const YELLOW_SIDEBAR_STYLE: React.CSSProperties = {
+  "--sidebar": "45 93% 13%",
+  "--sidebar-foreground": "48 100% 95%",
+  "--sidebar-primary": "48 96% 53%",
+  "--sidebar-primary-foreground": "48 10% 10%",
+  "--sidebar-accent": "45 93% 20%",
+  "--sidebar-accent-foreground": "48 100% 90%",
+  "--sidebar-border": "45 93% 22%",
+  "--sidebar-ring": "48 96% 53%",
+  backgroundColor: "hsl(45, 93%, 13%)",
+  color: "hsl(48, 100%, 95%)",
+  borderColor: "hsl(45, 93%, 22%)",
+} as React.CSSProperties;
+
 export function Sidebar() {
   const [location, setLocation] = useLocation();
   const currentUser = db.getCurrentUser();
   const userRole = currentUser?.role || 'employee';
 
+  const isEmployee = userRole === 'employee';
+
   const filteredNavItems = navItems.filter(item => {
-    if (userRole === 'employee') {
-      return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances'].includes(item.label);
+    if (userRole === 'admin') return true;
+    if (userRole === 'hr') {
+      return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances', 'Settings', 'Payroll', 'Reports'].includes(item.label);
     }
-    return true;
+    return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances'].includes(item.label);
   });
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-sidebar text-sidebar-foreground transition-transform">
+    <aside
+      className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-sidebar text-sidebar-foreground transition-transform"
+      style={userRole !== 'admin' ? YELLOW_SIDEBAR_STYLE : undefined}
+    >
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
         <div className="flex items-center gap-2 font-heading font-bold text-xl tracking-tight">
           <div className="h-8 w-8 flex items-center justify-center">
@@ -77,8 +99,8 @@ export function Sidebar() {
         <Button
           variant="ghost"
           className="flex w-full items-center justify-start gap-2 rounded-xl border border-sidebar-border/50 px-4 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive group shadow-sm"
-          onClick={() => {
-            db.logout();
+          onClick={async () => {
+            await db.logout();
             setLocation("/");
           }}
         >

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,20 +11,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { FileText, Folder, Upload, Cloud, Trash, Search, Users, Clock, Banknote, FileCheck } from "lucide-react";
+import { FileText, Folder, Upload, Cloud, Trash, Search, Users, Clock, Banknote, FileCheck, Loader2 } from "lucide-react";
 import { db, Document } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import Swal from 'sweetalert2';
+import { useUsers, useAttendance, useCashAdvances, useDocuments, useHRMSMutations } from "@/hooks/use-hrms";
 
 export default function Documents() {
   const currentUser = db.getCurrentUser();
-  const [documents, setDocuments] = useState<Document[]>(db.getDocuments());
+  const { data: documentsData, isLoading: docsLoading } = useDocuments();
+  const { data: employees = [], isLoading: usersLoading } = useUsers();
+  const { data: attendance = [], isLoading: attLoading } = useAttendance();
+  const { data: cashAdvances = [], isLoading: caLoading } = useCashAdvances();
+  const { addDocument, deleteDocument } = useHRMSMutations();
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-
-  const employees = db.getUsers();
-  const attendance = db.getAttendance();
-  const cashAdvances = db.getCashAdvanceRequests();
 
   const [newDoc, setNewDoc] = useState({
     name: '',
@@ -38,8 +41,7 @@ export default function Documents() {
       return;
     }
 
-    const doc: Document = {
-      id: `d-${Date.now()}`,
+    const doc: Partial<Document> = {
       name: newDoc.name,
       type: newDoc.type,
       size: newDoc.size,
@@ -47,14 +49,13 @@ export default function Documents() {
       uploadedBy: currentUser?.role === 'admin' ? 'Admin' : 'HR'
     };
 
-    db.addDocument(doc);
-    setDocuments(db.getDocuments());
+    addDocument.mutate(doc);
     setIsUploadDialogOpen(false);
     setNewDoc({ name: '', type: 'PDF', size: '1.5 MB' });
 
     Swal.fire({
       title: 'Success!',
-      text: 'Document uploaded successfully.',
+      text: 'Document upload initiated.',
       icon: 'success'
     });
   };
@@ -68,14 +69,25 @@ export default function Documents() {
       confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
       if (result.isConfirmed) {
-        db.deleteDocument(id);
-        setDocuments(db.getDocuments());
-        Swal.fire('Deleted!', 'Document has been deleted.', 'success');
+        deleteDocument.mutate(id);
+        Swal.fire('Deleting...', 'Processing document removal.', 'info');
       }
     });
   };
 
-  const filteredDocuments = documents.filter(doc =>
+  if (!currentUser) return null;
+
+  if (docsLoading || usersLoading || attLoading || caLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[600px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const filteredDocuments = (documentsData || []).filter(doc =>
     doc.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
