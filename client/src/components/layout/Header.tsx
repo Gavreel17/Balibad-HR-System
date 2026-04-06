@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Swal from 'sweetalert2';
+import { useActivityLogs } from "@/hooks/use-hrms";
 
 export function Header() {
-  const currentUser = db.getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(db.getCurrentUser());
   const [searchTerm, setSearchTerm] = useState("");
+  const { data: activities = [] } = useActivityLogs();
+
+  useEffect(() => {
+    return db.subscribe(() => {
+      setCurrentUser(db.getCurrentUser());
+    });
+  }, []);
 
   if (!currentUser) return null;
-  const activities = db.getRecentActivity();
   const unreadCount = activities.length;
 
   const handleSearch = (e: React.FormEvent) => {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,14 @@ const YELLOW_SIDEBAR_STYLE: React.CSSProperties = {
 
 export function Sidebar() {
   const [location, setLocation] = useLocation();
-  const currentUser = db.getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(db.getCurrentUser());
+
+  useEffect(() => {
+    return db.subscribe(() => {
+      setCurrentUser(db.getCurrentUser());
+    });
+  }, []);
+
   const userRole = currentUser?.role || 'employee';
 
   const isEmployee = userRole === 'employee';

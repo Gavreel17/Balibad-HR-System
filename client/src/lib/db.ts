@@ -73,6 +73,18 @@ export interface SystemSettings {
 class DataManager {
   private currentUser: User | null = null;
   private settings: SystemSettings | null = null;
+  private listeners: (() => void)[] = [];
+
+  subscribe(callback: () => void) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(i => i !== callback);
+    };
+  }
+
+  private notify() {
+    this.listeners.forEach(cb => cb());
+  }
 
   async getSystemSettings(): Promise<SystemSettings> {
     const res = await apiRequest("GET", "/api/settings");
@@ -85,27 +97,28 @@ class DataManager {
     await this.getSystemSettings();
   }
 
-  getCurrentUser(): User | null {
-    if (this.currentUser) return this.currentUser;
-    const saved = localStorage.getItem('hrms_user');
-    if (saved) {
-      try {
-        this.currentUser = JSON.parse(saved);
-        return this.currentUser;
-      } catch (e) {
-        localStorage.removeItem('hrms_user');
+  getCurrentUser() {
+    if (!this.currentUser) {
+      const saved = localStorage.getItem('hr_current_user');
+      if (saved) {
+        try {
+          this.currentUser = JSON.parse(saved);
+        } catch (e) {
+          localStorage.removeItem('hr_current_user');
+        }
       }
     }
-    return null;
+    return this.currentUser;
   }
 
   setCurrentUser(user: User | null) {
     this.currentUser = user;
     if (user) {
-      localStorage.setItem('hrms_user', JSON.stringify(user));
+      localStorage.setItem('hr_current_user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('hrms_user');
+      localStorage.removeItem('hr_current_user');
     }
+    this.notify();
   }
 
   async getUsers(): Promise<User[]> {
@@ -127,8 +140,7 @@ class DataManager {
 
     // If the updated user is the current user, update the local storage session
     if (this.currentUser && this.currentUser.id === id) {
-      this.currentUser = updatedUser;
-      localStorage.setItem('hr_current_user', JSON.stringify(updatedUser));
+      this.setCurrentUser(updatedUser);
     }
 
     return updatedUser;
