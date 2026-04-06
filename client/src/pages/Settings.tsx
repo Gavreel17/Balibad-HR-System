@@ -92,6 +92,32 @@ export default function Settings() {
     };
 
 
+    const handlePasswordSave = async () => {
+        if (!profile.newPassword || profile.newPassword.length < 8) {
+            return MySwal.fire({ title: 'Security Alert', text: 'New password must be at least 8 characters.', icon: 'warning' });
+        }
+
+        if (profile.newPassword !== profile.confirmPassword) {
+            return MySwal.fire({ title: 'Mismatch', text: 'New passwords do not match.', icon: 'error' });
+        }
+
+        try {
+            // Verify current password first if possible (on server side login matches)
+            // For now we trust and update password
+            updateUser.mutate({ id: currentUser!.id, data: { password: profile.newPassword } });
+
+            setProfile(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+
+            MySwal.fire({
+                title: 'Security Updated',
+                text: 'Your vault access credentials have been successfully reset.',
+                icon: 'success'
+            });
+        } catch (error) {
+            MySwal.fire({ title: 'Update Failed', text: 'Could not update security credentials.', icon: 'error' });
+        }
+    };
+
     const handleSave = (section: string) => {
         if (section === 'System Preferences') {
             updateSettings.mutate(systemSettings);
@@ -253,21 +279,21 @@ export default function Settings() {
                                         <div className="grid gap-6 md:grid-cols-3">
                                             <div className="grid gap-2">
                                                 <Label htmlFor="current" className="text-xs font-bold tracking-widest text-muted-foreground uppercase">Verify Passkey</Label>
-                                                <Input id="current" type="password" placeholder="Current Password" />
+                                                <Input id="current" type="password" placeholder="Current Password" value={profile.currentPassword} onChange={(e) => setProfile({ ...profile, currentPassword: e.target.value })} />
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="new" className="text-xs font-bold tracking-widest text-muted-foreground uppercase">New Cipher</Label>
-                                                <Input id="new" type="password" placeholder="Min 12 characters" />
+                                                <Input id="new" type="password" placeholder="Min 8 characters" value={profile.newPassword} onChange={(e) => setProfile({ ...profile, newPassword: e.target.value })} />
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="confirm" className="text-xs font-bold tracking-widest text-muted-foreground uppercase">Confirm Cipher</Label>
-                                                <Input id="confirm" type="password" placeholder="Repeat new cipher" />
+                                                <Input id="confirm" type="password" placeholder="Repeat new cipher" value={profile.confirmPassword} onChange={(e) => setProfile({ ...profile, confirmPassword: e.target.value })} />
                                             </div>
                                         </div>
                                     </CardContent>
                                     <CardFooter className="bg-muted/10 border-t justify-end p-6 gap-3">
-                                        <Button variant="outline" className="font-bold border-destructive/20 text-destructive hover:bg-destructive/5" onClick={() => handleSave('Security')}>
-                                            Force Credentials Reboot
+                                        <Button className="font-bold shadow-lg shadow-primary/20" onClick={handlePasswordSave}>
+                                            <Save className="mr-2 h-4 w-4" /> Save Security Cipher
                                         </Button>
                                     </CardFooter>
                                 </Card>

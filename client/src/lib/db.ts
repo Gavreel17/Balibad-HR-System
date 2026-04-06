@@ -122,7 +122,16 @@ class DataManager {
   }
 
   async updateUser(id: string, data: Partial<User>) {
-    await apiRequest("PATCH", `/api/users/${id}`, data);
+    const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+    const updatedUser = await res.json();
+
+    // If the updated user is the current user, update the local storage session
+    if (this.currentUser && this.currentUser.id === id) {
+      this.currentUser = updatedUser;
+      localStorage.setItem('hr_current_user', JSON.stringify(updatedUser));
+    }
+
+    return updatedUser;
   }
 
   async deleteUser(id: string) {
