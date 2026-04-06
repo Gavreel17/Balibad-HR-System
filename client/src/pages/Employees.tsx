@@ -54,14 +54,14 @@ export default function Employees() {
   useEffect(() => {
     if (!currentUser) {
       setLocation("/");
-    } else if (currentUser.role !== 'admin') {
+    } else if (currentUser.role !== 'admin' && currentUser.role !== 'hr') {
       setLocation("/dashboard");
     }
   }, [currentUser, setLocation]);
 
   const users = useMemo(() => allUsers.filter(u => u.isEmployee), [allUsers]);
 
-  if (!currentUser || currentUser.role !== 'admin') return null;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'hr')) return null;
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
   const handleAddEmployee = () => {

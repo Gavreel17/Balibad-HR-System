@@ -53,7 +53,7 @@ export function Sidebar() {
   const filteredNavItems = navItems.filter(item => {
     if (userRole === 'admin') return true;
     if (userRole === 'hr') {
-      return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances', 'Settings', 'Payroll', 'Reports'].includes(item.label);
+      return ['Dashboard', 'Employees', 'Attendance', 'Documents', 'Cash Advances', 'Settings', 'Payroll', 'Reports'].includes(item.label);
     }
     return ['Dashboard', 'Attendance', 'Documents', 'Cash Advances'].includes(item.label);
   });
