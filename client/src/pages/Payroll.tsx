@@ -57,7 +57,7 @@ export default function Payroll() {
   const users = allUsers.filter(u => u.status === 'active' && u.isEmployee);
 
   // Helper Calculations
-  const calcMonthlyGross = (annual: number) => annual / 12;
+  const calcMonthlyGross = (annual: number) => (Number(annual) || 0) / 12;
 
   const getCashAdvanceDeduction = (userId: string) => {
     return cashAdvances
@@ -72,9 +72,9 @@ export default function Payroll() {
       a.status === 'absent' &&
       a.date.startsWith(currentMonthPrefix)
     ).length;
-    const monthlySalary = salary / 12;
+    const monthlySalary = (Number(salary) || 0) / 12;
     const dailyRate = monthlySalary / 22; // Assuming 22 work days/month
-    return absences * dailyRate;
+    return (Number(absences) || 0) * dailyRate;
   };
 
   const calculateFullPayrollData = (user: User) => {
@@ -94,12 +94,12 @@ export default function Payroll() {
   });
 
   // Summary Stats
-  const totalGross = filteredUsers.reduce((sum, u) => sum + calcMonthlyGross(u.salary), 0);
+  const totalGross = filteredUsers.reduce((sum, u) => sum + calcMonthlyGross(u.salary), 0) || 0;
   const totalDeductions = filteredUsers.reduce((sum, u) => {
     const data = calculateFullPayrollData(u);
-    return sum + data.totalDeductions;
-  }, 0);
-  const totalNet = totalGross - totalDeductions;
+    return sum + (Number(data.totalDeductions) || 0);
+  }, 0) || 0;
+  const totalNet = (totalGross - totalDeductions) || 0;
 
 
   const handlePrint = (userId: string) => {

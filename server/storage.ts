@@ -11,10 +11,12 @@ import {
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { hashPassword } from "./auth";
 
 export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
@@ -54,6 +56,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
   async getUserByUsername(name: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.name, name));
     return user;
@@ -65,7 +72,8 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = insertUser.id || randomUUID();
-    const [user] = await db.insert(users).values({ ...insertUser, id }).returning();
+    const hashedPassword = await hashPassword(insertUser.password);
+    const [user] = await db.insert(users).values({ ...insertUser, id, password: hashedPassword }).returning();
     return user;
   }
 

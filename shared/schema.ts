@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   biometricCredential: text("biometric_credential"),
   lastLogin: text("last_login"),
   isOnline: boolean("is_online").notNull().default(false),
+  password: text("password").notNull(),
 });
 
 export const attendance = pgTable("attendance", {

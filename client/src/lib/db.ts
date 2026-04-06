@@ -113,7 +113,7 @@ class DataManager {
     return await res.json();
   }
 
-  async addUser(user: Partial<User>): Promise<User> {
+  async addUser(user: Partial<User> & { password?: string }): Promise<User> {
     const res = await apiRequest("POST", "/api/users", {
       ...user,
       id: user.id || `u-${Date.now()}`
@@ -194,23 +194,27 @@ class DataManager {
     });
   }
 
-  async login(email: string, role: string) {
-    const users = await this.getUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.role === role);
-    if (user) {
-      const now = new Date();
-      const lastLogin = now.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
+  async login(email: string, role: string, password?: string) {
+    try {
+      const res = await apiRequest("POST", "/api/login", { email, password, role });
+      if (res.ok) {
+        const user = await res.json();
+        const now = new Date();
+        const lastLogin = now.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
 
-      const updatedUser = { ...user, isOnline: true, lastLogin };
-      await this.updateUser(user.id, { isOnline: true, lastLogin });
-      this.setCurrentUser(updatedUser);
-      return updatedUser;
+        const updatedUser = { ...user, isOnline: true, lastLogin };
+        await this.updateUser(user.id, { isOnline: true, lastLogin });
+        this.setCurrentUser(updatedUser);
+        return updatedUser;
+      }
+    } catch (e) {
+      console.error("Login failed:", e);
     }
     return null;
   }

@@ -22,7 +22,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const user = await db.login(email, selectedRole);
+      const user = await db.login(email, selectedRole, password);
       if (user) {
         setLocation("/dashboard");
       } else {

@@ -80,7 +80,7 @@ export default function Reports() {
     ];
 
     // Payroll Stats (Enhanced mock data)
-    const basePayroll = users.filter(u => u.isEmployee).reduce((sum, user) => sum + (user.salary / 12), 0);
+    const basePayroll = users.filter(u => u.isEmployee).reduce((sum, user) => sum + ((Number(user.salary) || 0) / 12), 0) || 0;
     const payrollHistory = [
         { month: 'Jan', amount: basePayroll * 0.95, staff: 12 },
         { month: 'Feb', amount: basePayroll * 0.96, staff: 12 },
@@ -131,7 +131,7 @@ export default function Reports() {
                         { title: 'Total Personnel', value: totalEmployees, icon: Users, color: 'from-blue-500/10 to-blue-500/5', text: 'text-blue-600' },
                         { title: 'Operational Now', value: activeEmployees, icon: UserCheck, color: 'from-emerald-500/10 to-emerald-500/5', text: 'text-emerald-600' },
                         { title: 'Average Payroll', value: `₱${(totalEmployees > 0 ? (basePayroll / totalEmployees) : 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: Banknote, color: 'from-purple-500/10 to-purple-500/5', text: 'text-purple-600' },
-                        { title: 'Monthly Total', value: `₱${(basePayroll / 1000).toFixed(1)}k`, icon: TrendingUp, color: 'from-indigo-500/10 to-indigo-500/5', text: 'text-indigo-600' }
+                        { title: 'Monthly Total', value: `₱${((Number(basePayroll) || 0) / 1000).toFixed(1)}k`, icon: TrendingUp, color: 'from-indigo-500/10 to-indigo-500/5', text: 'text-indigo-600' }
                     ].map((stat, i) => (
                         <Card key={i} className="border-none shadow-premium overflow-hidden group">
                             <CardHeader className={cn("pb-2 bg-gradient-to-br", stat.color)}>

@@ -40,13 +40,14 @@ export default function Register() {
           salary: selectedRole === 'admin' ? 80000 : 30000,
           status: 'active' as const,
           branch: 'Dimataling',
-          isEmployee: false
+          isEmployee: false,
+          password: password
         };
 
         await db.addUser(newUser);
 
         // Auto-login after registration
-        await db.login(email, selectedRole);
+        await db.login(email, selectedRole, password);
 
         MySwal.fire({
           title: 'Welcome to BALIBAD STORE',

@@ -19,7 +19,7 @@ app.use(
     },
   }),
 );
- 
+
 app.use(express.urlencoded({ extended: false }));
 
 export function log(message: string, source = "express") {
@@ -100,4 +100,11 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
-})();
+})().catch(err => {
+  console.error("Unhandled error in main:");
+  console.error(err);
+  if (err instanceof Error) {
+    console.error(err.stack);
+  }
+  process.exit(1);
+});

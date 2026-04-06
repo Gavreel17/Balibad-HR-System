@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { comparePasswords } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -9,12 +10,32 @@ export async function registerRoutes(
   // Users
   app.get("/api/users", async (_req, res) => {
     const users = await storage.getUsers();
-    res.json(users);
+    // Exclude passwords from the response
+    const safeUsers = users.map(({ password, ...user }) => user);
+    res.json(safeUsers);
+  });
+
+  app.post("/api/login", async (req, res) => {
+    const { email, password, role } = req.body;
+    const user = await storage.getUserByEmail(email);
+
+    if (!user || user.role !== role) {
+      return res.status(401).json({ message: "Invalid email or role" });
+    }
+
+    const isValid = await comparePasswords(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    const { password: _, ...safeUser } = user;
+    res.json(safeUser);
   });
 
   app.post("/api/users", async (req, res) => {
     const user = await storage.createUser(req.body);
-    res.json(user);
+    const { password, ...safeUser } = user;
+    res.json(safeUser);
   });
 
   app.patch("/api/users/:id", async (req, res) => {
