@@ -28,7 +28,7 @@ interface StaffDashboardProps {
 export function StaffDashboard({ user }: StaffDashboardProps) {
     const { data: attendance = [], isLoading: isLoadingAttendance } = useAttendance();
     const { data: allCashAdvances = [], isLoading: isLoadingAdvances } = useCashAdvances();
-    const { addCashAdvanceRequest, addActivity } = useHRMSMutations();
+    const { addCashAdvance, addActivity } = useHRMSMutations();
 
     const userAttendance = useMemo(() => attendance.filter(a => a.userId === user.id), [attendance, user.id]);
     const userCashAdvances = useMemo(() => allCashAdvances.filter(ca => ca.userId === user.id), [allCashAdvances, user.id]);
@@ -65,7 +65,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             status: 'pending'
         };
 
-        addCashAdvanceRequest.mutate(request);
+        addCashAdvance.mutate(request);
 
         // Send notification to admin if requested by non-admin
         if (user.role !== 'admin') {

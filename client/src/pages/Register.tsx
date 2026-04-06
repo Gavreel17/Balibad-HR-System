@@ -16,6 +16,7 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [authCode, setAuthCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useLocation();
 
@@ -41,7 +42,8 @@ export default function Register() {
           status: 'active' as const,
           branch: 'Dimataling',
           isEmployee: false,
-          password: password
+          password: password,
+          authCode: authCode
         };
 
         await db.addUser(newUser);
@@ -122,6 +124,17 @@ export default function Register() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="authCode">Registration Authorization Code</Label>
+                <Input
+                  id="authCode"
+                  type="password"
+                  placeholder="Required for HR/Admin provisioning"
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
                   required
                 />
               </div>

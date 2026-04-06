@@ -33,9 +33,20 @@ export async function registerRoutes(
   });
 
   app.post("/api/users", async (req, res) => {
-    const user = await storage.createUser(req.body);
-    const { password, ...safeUser } = user;
-    res.json(safeUser);
+    const { authCode, ...userData } = req.body;
+
+    // Check authorization code for registering an account
+    if (authCode !== "BALIBAD2026") {
+      return res.status(403).json({ message: "Invalid authorization code for registration." });
+    }
+
+    try {
+      const user = await storage.createUser(userData);
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create user." });
+    }
   });
 
   app.patch("/api/users/:id", async (req, res) => {

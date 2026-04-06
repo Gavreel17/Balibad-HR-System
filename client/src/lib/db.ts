@@ -113,7 +113,7 @@ class DataManager {
     return await res.json();
   }
 
-  async addUser(user: Partial<User> & { password?: string }): Promise<User> {
+  async addUser(user: Partial<User> & { password?: string, authCode?: string }): Promise<User> {
     const res = await apiRequest("POST", "/api/users", {
       ...user,
       id: user.id || `u-${Date.now()}`
