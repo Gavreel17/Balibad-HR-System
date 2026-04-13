@@ -22,14 +22,17 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const user = await db.login(email, selectedRole, password);
-      if (user) {
-        setLocation("/dashboard");
-      } else {
-        alert("Invalid credentials for the selected portal. Please check your email and portal selection.");
+      const user = await db.login(email, undefined, password);
+      setLocation("/dashboard");
+    } catch (error: any) {
+      const message = error.message || "An error occurred during login.";
+      // Extract the message from JSON if it's an API error
+      try {
+        const parsed = JSON.parse(message);
+        alert(parsed.message || message);
+      } catch {
+        alert(message);
       }
-    } catch (error) {
-      alert("An error occurred during login. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -27,6 +27,7 @@ export interface IStorage {
   getAttendance(): Promise<Attendance[]>;
   addAttendance(record: InsertAttendance): Promise<Attendance>;
   updateAttendance(id: string, record: Partial<Attendance>): Promise<Attendance>;
+  addAttendanceBulk(records: InsertAttendance[]): Promise<Attendance[]>;
 
 
   // Documents
@@ -49,6 +50,180 @@ export interface IStorage {
   updateSystemSettings(settings: InsertSystemSettings): Promise<SystemSettings>;
 }
 
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;
+  private attendance: Map<string, Attendance>;
+  private documents: Map<string, Document>;
+  private cashAdvances: Map<string, CashAdvance>;
+  private activityLogs: Map<string, ActivityLog>;
+  private systemSettings: SystemSettings | undefined;
+
+  constructor() {
+    this.users = new Map();
+    this.attendance = new Map();
+    this.documents = new Map();
+    this.cashAdvances = new Map();
+    this.activityLogs = new Map();
+  }
+
+  // Users
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  async getUserByUsername(name: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.name === name);
+  }
+
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = insertUser.id || randomUUID();
+    const hashedPassword = await hashPassword(insertUser.password);
+    const user: User = {
+      ...insertUser,
+      id,
+      password: hashedPassword,
+      avatar: insertUser.avatar ?? null,
+      address: insertUser.address ?? null,
+      contactNumber: insertUser.contactNumber ?? null,
+      biometricCredential: insertUser.biometricCredential ?? null,
+      lastLogin: insertUser.lastLogin ?? null,
+      isEmployee: insertUser.isEmployee ?? true,
+      isOnline: insertUser.isOnline ?? false,
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async updateUser(id: string, updateData: Partial<User>): Promise<User> {
+    const user = this.users.get(id);
+    if (!user) throw new Error("User not found");
+    const updated = { ...user, ...updateData };
+    if (updateData.password) {
+      updated.password = await hashPassword(updateData.password);
+    }
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    this.users.delete(id);
+  }
+
+  // Attendance
+  async getAttendance(): Promise<Attendance[]> {
+    return Array.from(this.attendance.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async addAttendance(record: InsertAttendance): Promise<Attendance> {
+    const id = record.id || `att-${Date.now()}`;
+    const newRecord: Attendance = {
+      ...record,
+      id,
+      timeOut: record.timeOut ?? null,
+    };
+    this.attendance.set(id, newRecord);
+    return newRecord;
+  }
+
+  async updateAttendance(id: string, record: Partial<Attendance>): Promise<Attendance> {
+    const existing = this.attendance.get(id);
+    if (!existing) throw new Error("Attendance record not found");
+    const updated = { ...existing, ...record };
+    this.attendance.set(id, updated);
+    return updated;
+  }
+
+  async addAttendanceBulk(records: InsertAttendance[]): Promise<Attendance[]> {
+    const results: Attendance[] = [];
+    for (const record of records) {
+      const id = record.id || `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newRecord: Attendance = {
+        ...record,
+        id,
+        timeOut: record.timeOut ?? null,
+      };
+      this.attendance.set(id, newRecord);
+      results.push(newRecord);
+    }
+    return results;
+  }
+
+  // Documents
+  async getDocuments(): Promise<Document[]> {
+    return Array.from(this.documents.values());
+  }
+
+  async addDocument(doc: InsertDocument): Promise<Document> {
+    const id = doc.id || `d-${Date.now()}`;
+    const newDoc: Document = { ...doc, id };
+    this.documents.set(id, newDoc);
+    return newDoc;
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    this.documents.delete(id);
+  }
+
+  // Cash Advances
+  async getCashAdvances(): Promise<CashAdvance[]> {
+    return Array.from(this.cashAdvances.values());
+  }
+
+  async addCashAdvance(request: InsertCashAdvance): Promise<CashAdvance> {
+    const id = request.id || `ca-${Date.now()}`;
+    const newRequest: CashAdvance = { ...request, id };
+    this.cashAdvances.set(id, newRequest);
+    return newRequest;
+  }
+
+  async updateCashAdvanceStatus(id: string, status: string): Promise<CashAdvance> {
+    const existing = this.cashAdvances.get(id);
+    if (!existing) throw new Error("Cash advance not found");
+    const updated = { ...existing, status };
+    this.cashAdvances.set(id, updated);
+    return updated;
+  }
+
+  async deleteCashAdvance(id: string): Promise<void> {
+    this.cashAdvances.delete(id);
+  }
+
+  // Activity Logs
+  async getActivityLogs(): Promise<ActivityLog[]> {
+    return Array.from(this.activityLogs.values()).sort((a, b) => b.time.localeCompare(a.time));
+  }
+
+  async addActivity(activity: InsertActivityLog): Promise<ActivityLog> {
+    const id = activity.id || `act-${Date.now()}`;
+    const newActivity: ActivityLog = {
+      ...activity,
+      id,
+      avatar: activity.avatar ?? null,
+      userRole: activity.userRole ?? null,
+    };
+    this.activityLogs.set(id, newActivity);
+    return newActivity;
+  }
+
+  // System Settings
+  async getSystemSettings(): Promise<SystemSettings | undefined> {
+    return this.systemSettings;
+  }
+
+  async updateSystemSettings(settings: InsertSystemSettings): Promise<SystemSettings> {
+    const updated: SystemSettings = { ...settings, id: 1 };
+    this.systemSettings = updated;
+    return updated;
+  }
+}
 export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
@@ -72,8 +247,20 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = insertUser.id || randomUUID();
-    const hashedPassword = await hashPassword(insertUser.password);
-    const [user] = await db.insert(users).values({ ...insertUser, id, password: hashedPassword }).returning();
+    const hashedPassword = await hashPassword(insertUser.password || "Employee123!");
+    const userData = {
+      ...insertUser,
+      id,
+      password: hashedPassword,
+      avatar: insertUser.avatar ?? null,
+      address: insertUser.address ?? null,
+      contactNumber: insertUser.contactNumber ?? null,
+      biometricCredential: insertUser.biometricCredential ?? null,
+      lastLogin: insertUser.lastLogin ?? null,
+      isEmployee: insertUser.isEmployee ?? true,
+      isOnline: insertUser.isOnline ?? false,
+    };
+    const [user] = await db.insert(users).values(userData).returning();
     return user;
   }
 
@@ -97,7 +284,11 @@ export class DatabaseStorage implements IStorage {
 
   async addAttendance(record: InsertAttendance): Promise<Attendance> {
     const id = record.id || `att-${Date.now()}`;
-    const [newRecord] = await db.insert(attendance).values({ ...record, id }).returning();
+    const [newRecord] = await db.insert(attendance).values({ 
+      ...record, 
+      id,
+      timeOut: record.timeOut ?? null
+    }).returning();
     return newRecord;
   }
 
@@ -106,6 +297,15 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async addAttendanceBulk(records: InsertAttendance[]): Promise<Attendance[]> {
+    const formattedRecords = records.map(record => ({
+      ...record,
+      id: record.id || `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timeOut: record.timeOut ?? null
+    }));
+    
+    return await db.insert(attendance).values(formattedRecords).returning();
+  }
 
   // Documents
   async getDocuments(): Promise<Document[]> {
@@ -149,7 +349,12 @@ export class DatabaseStorage implements IStorage {
 
   async addActivity(activity: InsertActivityLog): Promise<ActivityLog> {
     const id = activity.id || `act-${Date.now()}`;
-    const [newActivity] = await db.insert(activityLogs).values({ ...activity, id }).returning();
+    const [newActivity] = await db.insert(activityLogs).values({ 
+      ...activity, 
+      id,
+      avatar: activity.avatar ?? null,
+      userRole: activity.userRole ?? null
+    }).returning();
     return newActivity;
   }
 
@@ -171,4 +376,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new MemStorage();

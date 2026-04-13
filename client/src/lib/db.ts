@@ -162,6 +162,9 @@ class DataManager {
     });
   }
 
+  async addAttendanceBulk(records: Partial<Attendance>[]) {
+    await apiRequest("POST", "/api/attendance/bulk", records);
+  }
   async updateAttendance(id: string, data: Partial<Attendance>) {
     await apiRequest("PATCH", `/api/attendance/${id}`, data);
   }
@@ -215,9 +218,13 @@ class DataManager {
     });
   }
 
-  async login(email: string, role: string, password?: string) {
+  async login(email: string, role?: string, password?: string) {
     try {
-      const res = await apiRequest("POST", "/api/login", { email, password, role });
+      const loginData: any = { email, password };
+      if (role) {
+        loginData.role = role;
+      }
+      const res = await apiRequest("POST", "/api/login", loginData);
       if (res.ok) {
         const user = await res.json();
         const now = new Date();
@@ -230,14 +237,22 @@ class DataManager {
         });
 
         const updatedUser = { ...user, isOnline: true, lastLogin };
-        await this.updateUser(user.id, { isOnline: true, lastLogin });
+        try {
+          await this.updateUser(user.id, { isOnline: true, lastLogin });
+        } catch (e) {
+          console.warn("Could not update online status, but proceeding with login:", e);
+        }
+
         this.setCurrentUser(updatedUser);
         return updatedUser;
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || `Status ${res.status}`);
       }
-    } catch (e) {
-      console.error("Login failed:", e);
+    } catch (e: any) {
+      console.error("Detailed Login Error:", e);
+      throw e;
     }
-    return null;
   }
 
   async logout() {

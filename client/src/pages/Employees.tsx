@@ -41,11 +41,11 @@ export default function Employees() {
   const [newEmployee, setNewEmployee] = useState({
     name: '',
     email: '',
-    role: '',
+    role: 'employee' as UserRole,
     branch: '',
     address: '',
     contactNumber: '',
-    department: '',
+    department: 'General',
     position: '',
     salary: '30000',
     status: 'active'
@@ -65,13 +65,14 @@ export default function Employees() {
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
   const handleAddEmployee = () => {
-    if (newEmployee.name && newEmployee.email && newEmployee.branch && newEmployee.department) {
+    if (newEmployee.name && newEmployee.email && newEmployee.branch && newEmployee.department && newEmployee.position) {
       if (editingId) {
         updateUser.mutate({
           id: editingId,
           data: {
             name: newEmployee.name,
             email: newEmployee.email,
+            role: newEmployee.role,
             department: newEmployee.department,
             position: newEmployee.position,
             salary: parseFloat(newEmployee.salary),
@@ -89,24 +90,26 @@ export default function Employees() {
         });
       } else {
         // Create new
-        const existingIds = users.map(u => parseInt(u.id.replace(/\D/g, '')) || 0);
-        const maxId = Math.max(0, ...existingIds);
+        const existingIds = users.filter(u => u.isEmployee).map(u => parseInt(u.id.replace(/\D/g, '')) || 0);
+        const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
         const nextId = (maxId + 1).toString().padStart(3, '0');
 
-        const employee: User = {
+        const employee = {
           id: nextId,
           name: newEmployee.name,
           email: newEmployee.email,
-          role: newEmployee.role as UserRole || 'employee',
+          role: newEmployee.role,
           department: newEmployee.department,
-          position: newEmployee.position || (newEmployee.role === 'admin' ? 'System Administrator' : newEmployee.role === 'hr' ? 'HR Manager' : 'Staff Member'),
+          position: newEmployee.position,
           joinDate: new Date().toISOString().split('T')[0],
           salary: parseFloat(newEmployee.salary) || 30000,
           status: newEmployee.status as 'active' | 'terminated',
           branch: newEmployee.branch,
           address: newEmployee.address,
           contactNumber: newEmployee.contactNumber,
-          isEmployee: true
+          isEmployee: true,
+          authCode: "BALIBAD2026",
+          password: "Employee123!"
         };
         addUser.mutate(employee);
         MySwal.fire({
@@ -116,6 +119,14 @@ export default function Employees() {
           confirmButtonText: 'Ok'
         });
       }
+    } else {
+      MySwal.fire({
+        title: 'Incomplete Form',
+        text: 'Please fill in all required fields (Name, Email, Branch, Department, and Position).',
+        icon: 'warning',
+        confirmButtonText: 'Got it'
+      });
+      return; // Prevent closing the dialog
     }
     resetForm();
     setIsAddDialogOpen(false);
@@ -125,11 +136,11 @@ export default function Employees() {
     setNewEmployee({
       name: '',
       email: '',
-      role: '',
+      role: 'employee',
       branch: '',
       address: '',
       contactNumber: '',
-      department: '',
+      department: 'General',
       position: '',
       salary: '30000',
       status: 'active'
@@ -245,79 +256,99 @@ export default function Employees() {
                 <Plus className="mr-2 h-4 w-4" />
                 Add Employee
               </Button>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>{editingId ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+              <DialogContent className="sm:max-w-[600px] gap-0 p-0 overflow-hidden border-none shadow-2xl">
+                <DialogHeader className="p-6 bg-primary text-primary-foreground">
+                  <DialogTitle className="text-2xl font-heading font-bold">{editingId ? 'Edit Employee Details' : 'Onboard New Employee'}</DialogTitle>
+                  <p className="text-sm text-primary-foreground/80 font-medium">Complete the information below to {editingId ? 'update' : 'provision'} the personnel record.</p>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" className="col-span-3" placeholder="John Doe" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input id="email" className="col-span-3" placeholder="john@company.com" value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="branch" className="text-right">Branch</Label>
-                    <Select value={newEmployee.branch} onValueChange={(value) => setNewEmployee({ ...newEmployee, branch: value })}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Dimataling">Dimataling</SelectItem>
-                        <SelectItem value="Tabina">Tabina</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="address" className="text-right">Address</Label>
-                    <Input id="address" className="col-span-3" placeholder="123 Main St" value={newEmployee.address} onChange={(e) => setNewEmployee({ ...newEmployee, address: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="contact" className="text-right">Contact #</Label>
-                    <Input id="contact" className="col-span-3" placeholder="09123456789" value={newEmployee.contactNumber} onChange={(e) => setNewEmployee({ ...newEmployee, contactNumber: e.target.value })} />
+                <div className="p-6 space-y-6 bg-white">
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Basic Info */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name *</Label>
+                        <Input id="name" placeholder="John Doe" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} className="h-10" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email Address *</Label>
+                        <Input id="email" type="email" placeholder="john@balibad.store" value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} className="h-10" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="branch" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Branch Location *</Label>
+                        <Select value={newEmployee.branch} onValueChange={(value) => setNewEmployee({ ...newEmployee, branch: value })}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Select branch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Dimataling">Dimataling Branch</SelectItem>
+                            <SelectItem value="Tabina">Tabina Branch</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Operational Details */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="department" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Department *</Label>
+                        <Select value={newEmployee.department} onValueChange={(value) => setNewEmployee({ ...newEmployee, department: value })}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Management">Management</SelectItem>
+                            <SelectItem value="Human Resources">Human Resources</SelectItem>
+                            <SelectItem value="Sales">Sales & Marketing</SelectItem>
+                            <SelectItem value="Inventory">Inventory Control</SelectItem>
+                            <SelectItem value="Finance">Finance & Payroll</SelectItem>
+                            <SelectItem value="IT">IT Support</SelectItem>
+                            <SelectItem value="Operations">Operations</SelectItem>
+                            <SelectItem value="Maintenance">Maintenance</SelectItem>
+                            <SelectItem value="General">General Staff</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="position" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Job Position *</Label>
+                        <Input id="position" placeholder="e.g. Sales Associate" value={newEmployee.position} onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })} className="h-10" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="salary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Monthly Salary (PHP)</Label>
+                        <Input id="salary" type="number" placeholder="30000" value={newEmployee.salary} onChange={(e) => setNewEmployee({ ...newEmployee, salary: e.target.value })} className="h-10" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="status" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Employment Status</Label>
+                        <Select value={newEmployee.status} onValueChange={(value) => setNewEmployee({ ...newEmployee, status: value })}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="terminated">Terminated</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="salary" className="text-right">Salary</Label>
-                    <Input id="salary" type="number" className="col-span-3" placeholder="30000" value={newEmployee.salary} onChange={(e) => setNewEmployee({ ...newEmployee, salary: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="department" className="text-right">Department</Label>
-                    <Select value={newEmployee.department} onValueChange={(value) => setNewEmployee({ ...newEmployee, department: value })}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Management">Management</SelectItem>
-                        <SelectItem value="Human Resources">Human Resources</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="Inventory">Inventory</SelectItem>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                        <SelectItem value="IT">IT</SelectItem>
-                        <SelectItem value="Operations">Operations</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="General">General</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status" className="text-right">Status</Label>
-                    <Select value={newEmployee.status} onValueChange={(value) => setNewEmployee({ ...newEmployee, status: value })}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="terminated">Terminated</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Contact Info (Full Width) */}
+                  <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                    <div className="space-y-2">
+                      <Label htmlFor="contact" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Contact Number</Label>
+                      <Input id="contact" placeholder="09123456789" value={newEmployee.contactNumber} onChange={(e) => setNewEmployee({ ...newEmployee, contactNumber: e.target.value })} className="h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Primary Address</Label>
+                      <Input id="address" placeholder="Barangay, City, Province" value={newEmployee.address} onChange={(e) => setNewEmployee({ ...newEmployee, address: e.target.value })} className="h-10" />
+                    </div>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="submit" onClick={handleAddEmployee}>{editingId ? 'Update Employee' : 'Save Employee'}</Button>
+                <DialogFooter className="p-6 bg-muted/30 border-t">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="font-bold">Cancel</Button>
+                  <Button type="submit" onClick={handleAddEmployee} disabled={addUser.isPending || updateUser.isPending} className="bg-primary hover:bg-primary/90 font-bold px-8 shadow-lg">
+                    {(addUser.isPending || updateUser.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingId ? 'Update Record' : 'Create Personnel Record'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

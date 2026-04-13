@@ -57,7 +57,7 @@ export default function Payroll() {
   const users = allUsers.filter(u => u.status === 'active' && u.isEmployee);
 
   // Helper Calculations
-  const calcMonthlyGross = (annual: number) => (Number(annual) || 0) / 12;
+  const calcMonthlyGross = (monthlySalary: number) => (Number(monthlySalary) || 0);
 
   const getCashAdvanceDeduction = (userId: string) => {
     return cashAdvances
@@ -72,7 +72,7 @@ export default function Payroll() {
       a.status === 'absent' &&
       a.date.startsWith(currentMonthPrefix)
     ).length;
-    const monthlySalary = (Number(salary) || 0) / 12;
+    const monthlySalary = (Number(salary) || 0);
     const dailyRate = monthlySalary / 22; // Assuming 22 work days/month
     return (Number(absences) || 0) * dailyRate;
   };

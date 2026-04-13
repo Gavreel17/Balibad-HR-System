@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/lib/db";
+// @ts-expect-error - recharts does not ship its own types
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Users, UserCheck, Banknote, CalendarDays, Download, TrendingUp, MapPin, Award, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export default function Reports() {
     ];
 
     // Payroll Stats (Enhanced mock data)
-    const basePayroll = users.filter(u => u.isEmployee).reduce((sum, user) => sum + ((Number(user.salary) || 0) / 12), 0) || 0;
+    const basePayroll = users.filter(u => u.isEmployee).reduce((sum, user) => sum + (Number(user.salary) || 0), 0) || 0;
     const payrollHistory = [
         { month: 'Jan', amount: basePayroll * 0.95, staff: 12 },
         { month: 'Feb', amount: basePayroll * 0.96, staff: 12 },
@@ -178,7 +179,7 @@ export default function Reports() {
                                                 outerRadius={100}
                                                 paddingAngle={5}
                                                 dataKey="value"
-                                                label={({ name, value }) => `${name}: ${value}`}
+                                                label={({ name, value }: { name: string; value: number }) => `${name}: ${value}`}
                                             >
                                                 {branchDistribution.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -293,9 +294,9 @@ export default function Reports() {
                                         </defs>
                                         <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
                                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700 }} dy={10} />
-                                        <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `₱${v / 1000}k`} tick={{ fontSize: 10, fontWeight: 600 }} />
+                                        <YAxis axisLine={false} tickLine={false} tickFormatter={(v: number) => `₱${v / 1000}k`} tick={{ fontSize: 10, fontWeight: 600 }} />
                                         <Tooltip
-                                            formatter={(value) => [`₱${value.toLocaleString()}`, "Amount"]}
+                                            formatter={(value: number) => [`₱${value.toLocaleString()}`, "Amount"]}
                                             contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                                         />
                                         <Area type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorAmount)" name="Payout" />

@@ -110,9 +110,14 @@ export function useHRMSMutations() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cash-advances"] }),
     });
 
+    const addAttendanceBulk = useMutation({
+        mutationFn: (records: Partial<Attendance>[]) => db.addAttendanceBulk(records),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/attendance"] }),
+    });
+
     return {
         addUser, updateUser, deleteUser,
-        addAttendance, updateAttendance,
+        addAttendance, updateAttendance, addAttendanceBulk,
         addActivity, updateSettings,
         addDocument, deleteDocument,
         addCashAdvance, updateCashAdvanceStatus, deleteCashAdvance

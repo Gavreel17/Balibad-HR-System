@@ -17,18 +17,33 @@ export async function registerRoutes(
 
   app.post("/api/login", async (req, res) => {
     const { email, password, role } = req.body;
+    console.log(`Login attempt: email=${email}, role=${role}`);
+    
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
     const user = await storage.getUserByEmail(email);
 
-    if (!user || user.role !== role) {
+    if (!user) {
+      console.log(`Login failed: User ${email} not found`);
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    if (role && user.role !== role) {
+      console.log(`Login failed: Role mismatch for ${email}. Expected ${user.role}, got ${role}`);
       return res.status(401).json({ message: "Invalid email or role" });
     }
 
     const isValid = await comparePasswords(password, user.password);
+    console.log(`Password comparison for ${email}: ${isValid}`);
+    
     if (!isValid) {
-      return res.status(401).json({ message: "Invalid password" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const { password: _, ...safeUser } = user;
+    console.log(`Login success: ${email}, role=${safeUser.role}`);
     res.json(safeUser);
   });
 
@@ -37,6 +52,7 @@ export async function registerRoutes(
 
     // Check authorization code for registering an account
     if (authCode !== "BALIBAD2026") {
+      console.warn(`Registration failed: Invalid auth code "${authCode}"`);
       return res.status(403).json({ message: "Invalid authorization code for registration." });
     }
 
@@ -70,6 +86,14 @@ export async function registerRoutes(
     res.json(record);
   });
 
+  app.post("/api/attendance/bulk", async (req, res) => {
+    try {
+      const records = await storage.addAttendanceBulk(req.body);
+      res.json(records);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to bulk upload attendance." });
+    }
+  });
   app.patch("/api/attendance/:id", async (req, res) => {
     const record = await storage.updateAttendance(req.params.id, req.body);
     res.json(record);

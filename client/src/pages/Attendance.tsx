@@ -10,10 +10,14 @@ import { Input } from "@/components/ui/input";
 import { db, Attendance, User } from "@/lib/db";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { verifyBiometrics } from "@/lib/biometrics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileUp, Download, Info, Edit, Save } from "lucide-react";
 
 
 const MySwal = withReactContent(Swal);
@@ -22,13 +26,16 @@ export default function AttendancePage() {
     const { data: attendance = [], isLoading: isLoadingAttendance } = useAttendance();
     const { data: users = [], isLoading: isLoadingUsers } = useUsers();
     const { data: settings, isLoading: isLoadingSettings } = useSettings();
-    const { addAttendance, updateAttendance, addActivity } = useHRMSMutations();
+    const { addAttendance, updateAttendance, addAttendanceBulk, addActivity } = useHRMSMutations();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState("");
     const [viewingStatus, setViewingStatus] = useState<'present' | 'late' | 'absent' | null>(null);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [scanningState, setScanningState] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
     const [scannerMessage, setScannerMessage] = useState("Place your finger on the sensor");
+    const [importData, setImportData] = useState<Partial<Attendance>[]>([]);
+    const [isImporting, setIsImporting] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<Attendance | null>(null);
     const currentUser = db.getCurrentUser();
 
     const isAdmin = currentUser?.role === 'admin';
@@ -161,6 +168,57 @@ export default function AttendancePage() {
         if (viewingStatus === 'absent') return employeesOnly.filter(u => u.status === 'active' && !timedInIds.includes(u.id));
         return [];
     };
+    
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            const lines = text.split('\n').filter(line => line.trim());
+            const parsed: Partial<Attendance>[] = [];
+            
+            // Assume format: EmployeeID, Date, Time, Status
+            // Skip header if it looks like one
+            const startIdx = (lines[0].toLowerCase().includes('id') || lines[0].toLowerCase().includes('date')) ? 1 : 0;
+            
+            for (let i = startIdx; i < lines.length; i++) {
+                const [userId, date, time, status] = lines[i].split(',').map(s => s.trim());
+                if (userId && date && time) {
+                    parsed.push({
+                        id: `imp-${Date.now()}-${i}`,
+                        userId,
+                        date,
+                        timeIn: time,
+                        status: (status as any) || 'present'
+                    });
+                }
+            }
+            setImportData(parsed);
+            MySwal.fire({
+                title: 'File Parsed',
+                text: `Found ${parsed.length} attendance records.`,
+                icon: 'info'
+            });
+        };
+        reader.readAsText(file);
+    };
+
+    const handleBulkUpload = async () => {
+        if (importData.length === 0) return;
+        
+        setIsImporting(true);
+        try {
+            await addAttendanceBulk.mutateAsync(importData);
+            MySwal.fire('Success', 'Attendance data imported successfully!', 'success');
+            setImportData([]);
+        } catch (error) {
+            MySwal.fire('Error', 'Failed to import data.', 'error');
+        } finally {
+            setIsImporting(false);
+        }
+    };
 
     const getEmployeeName = (userId: string) => {
         return users.find(u => u.id === userId)?.name || 'Unknown';
@@ -206,97 +264,65 @@ export default function AttendancePage() {
                     </div>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    {!isAdminOrHR && (
-                        <Card className="md:col-span-2 overflow-hidden border-none shadow-premium bg-white/80 backdrop-blur-sm group transition-all hover:bg-white/90">
-                            <CardContent className="p-8">
-                                <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative">
-                                    <div className="space-y-2 text-center md:text-left animate-in zoom-in duration-300">
-                                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary/40">Real-Time Clocking</h3>
-                                        <div className="text-6xl font-heading font-bold tracking-tighter text-primary">
-                                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                <Tabs defaultValue="import" className="w-full">
+                    <TabsList className="mb-4 bg-muted/50 p-1 rounded-xl h-12">
+                        {isAdminOrHR && <TabsTrigger value="import" className="rounded-lg font-bold">Biometric Import</TabsTrigger>}
+                    </TabsList>
+
+
+
+
+                    <TabsContent value="import" className="space-y-6">
+                        <Card className="border-none shadow-premium bg-white/80 backdrop-blur-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Fingerprint className="h-5 w-5 text-primary" />
+                                    Biometric Batch Integration
+                                </CardTitle>
+                                <CardDescription>Sync attendance records from your hardware's CSV export.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="grid md:grid-cols-2 gap-8 items-start">
+                                    <div className="p-8 border-2 border-dashed border-primary/20 rounded-3xl bg-primary/5 flex flex-col items-center justify-center text-center space-y-4">
+                                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <FileUp className="h-8 w-8 text-primary" />
                                         </div>
-                                        <p className="text-lg text-muted-foreground font-bold italic">
-                                            {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-                                        </p>
+                                        <div className="space-y-1">
+                                            <p className="font-bold">Drop biometric file here</p>
+                                            <p className="text-xs text-muted-foreground font-medium italic">Supports CSV/TXT exports (ID, Date, Time, Status)</p>
+                                        </div>
+                                        <Input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="max-w-[250px] cursor-pointer" />
                                     </div>
-                                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                        <Button
-                                            size="xl"
-                                            className={cn(
-                                                "h-24 px-10 text-xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 group relative overflow-hidden rounded-2xl",
-                                                isCurrentTimedIn ? "bg-muted text-muted-foreground grayscale" : "bg-primary text-primary-foreground"
-                                            )}
-                                            onClick={handleTimeIn}
-                                            disabled={isCurrentTimedIn}
-                                        >
-                                            <div className="relative z-10 flex items-center gap-3">
-                                                <Fingerprint className={cn("h-8 w-8", !isCurrentTimedIn && "animate-pulse")} />
-                                                <span>{isCurrentTimedIn ? "Verified In" : "Scan Finger"}</span>
+
+                                    <div className="space-y-4">
+                                        <div className="bg-muted/30 p-4 rounded-2xl border border-muted flex items-start gap-3">
+                                            <Info className="h-5 w-5 text-primary mt-0.5" />
+                                            <div className="text-xs space-y-1">
+                                                <p className="font-bold text-primary uppercase tracking-tighter">System Instructions</p>
+                                                <p className="text-muted-foreground leading-relaxed">Ensure your CSV follows the sequence: <strong>Employee ID, YYYY-MM-DD, HH:MM:SS, [Optional Status]</strong> for accurate processing.</p>
                                             </div>
-                                            {!isCurrentTimedIn && <div className="absolute inset-0 bg-gradient-to-r from-primary-foreground/0 via-primary-foreground/10 to-primary-foreground/0 animate-shimmer" />}
-                                        </Button>
-                                        <Button
-                                            size="xl"
-                                            variant="outline"
-                                            className={cn(
-                                                "h-24 px-10 text-xl font-bold shadow-sm transition-all hover:scale-105 active:scale-95 rounded-2xl border-2",
-                                                !isCurrentTimedIn || isCurrentTimedOut ? "opacity-50 cursor-not-allowed" : "border-destructive/20 text-destructive hover:bg-destructive/10"
-                                            )}
-                                            onClick={handleTimeOut}
-                                            disabled={!isCurrentTimedIn || isCurrentTimedOut}
-                                        >
-                                            <LogOut className="mr-3 h-8 w-8" />
-                                            <span>{isCurrentTimedOut ? "Logged Out" : "Exit Scan"}</span>
-                                        </Button>
+                                        </div>
+                                        
+                                        {importData.length > 0 && (
+                                            <div className="p-6 rounded-2xl bg-white space-y-4 border shadow-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-sm font-bold">Staged Records</p>
+                                                        <p className="text-xs text-muted-foreground">{importData.length} entries detected</p>
+                                                    </div>
+                                                    <Button onClick={handleBulkUpload} disabled={isImporting} className="rounded-xl shadow-lg ring-offset-2 ring-primary/20">
+                                                        {isImporting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                                                        Confirm & Sync
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
-
-                    {isAdmin && (
-                        <Card className="col-span-full border-none shadow-premium bg-card/40 backdrop-blur-sm">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-primary" />
-                                    Daily Attendance Summary
-                                </CardTitle>
-                                <CardDescription>Click on a status to view and print the detailed employee list.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-                                {[
-                                    { label: 'Active Present', count: presentToday, color: 'green', type: 'present', icon: UserCheck, desc: 'Logged in on time' },
-                                    { label: 'Tardy Arrival', count: lateToday, color: 'amber', type: 'late', icon: AlertCircle, desc: 'Logged in after 9:00 AM' },
-                                    { label: 'Non-compliant', count: absentToday, color: 'red', type: 'absent', icon: XCircle, desc: 'No log detected today' }
-                                ].map((stat) => (
-                                    <button
-                                        key={stat.type}
-                                        className="flex flex-col items-center justify-center p-8 rounded-3xl hover:bg-white/50 transition-all border-2 border-transparent hover:border-primary/20 group text-center bg-white/20 shadow-sm"
-                                        onClick={() => setViewingStatus(stat.type as any)}
-                                    >
-                                        <div className={cn(
-                                            "p-4 rounded-2xl shadow-inner group-hover:scale-110 transition-transform mb-4",
-                                            stat.color === 'green' ? "bg-green-100 text-green-600" :
-                                                stat.color === 'amber' ? "bg-amber-100 text-amber-600" :
-                                                    "bg-red-100 text-red-600"
-                                        )}>
-                                            <stat.icon className="h-8 w-8" />
-                                        </div>
-                                        <span className="text-lg font-bold text-foreground/80">{stat.label}</span>
-                                        <span className={cn(
-                                            "text-4xl font-heading font-black mt-1",
-                                            stat.color === 'green' ? "text-green-600" :
-                                                stat.color === 'amber' ? "text-amber-600" :
-                                                    "text-red-600"
-                                        )}>{stat.count}</span>
-                                        <p className="text-xs text-muted-foreground mt-2 font-medium">{stat.desc}</p>
-                                    </button>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                    </TabsContent>
+                </Tabs>
 
                 <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
                     <DialogContent className="sm:max-w-md border-none shadow-2xl overflow-hidden p-0 rounded-3xl">
@@ -402,6 +428,7 @@ export default function AttendancePage() {
                                     <TableHead className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground">Terminal In</TableHead>
                                     <TableHead className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground">Terminal Out</TableHead>
                                     <TableHead className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground text-right">Verification</TableHead>
+                                    {isAdminOrHR && <TableHead className="w-[50px] no-print"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -439,12 +466,85 @@ export default function AttendancePage() {
                                                 {record.status === 'present' ? "Verified: On Time" : record.status === 'late' ? "Verified: Late Arrival" : record.status}
                                             </Badge>
                                         </TableCell>
+                                        {isAdminOrHR && (
+                                            <TableCell className="no-print">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    onClick={() => setEditingRecord(record)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </CardContent>
                 </Card>
+
+                {/* Edit Record Dialog */}
+                <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Correct Attendance Record</DialogTitle>
+                            <DialogDescription>Manually adjust time entry for {editingRecord && getEmployeeName(editingRecord.userId)}.</DialogDescription>
+                        </DialogHeader>
+                        {editingRecord && (
+                            <div className="space-y-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Date</Label>
+                                    <Input value={editingRecord.date} disabled className="col-span-3" />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Time In</Label>
+                                    <Input 
+                                        value={editingRecord.timeIn} 
+                                        onChange={(e) => setEditingRecord({...editingRecord, timeIn: e.target.value})}
+                                        className="col-span-3" 
+                                    />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Time Out</Label>
+                                    <Input 
+                                        value={editingRecord.timeOut || ''} 
+                                        onChange={(e) => setEditingRecord({...editingRecord, timeOut: e.target.value})}
+                                        className="col-span-3"
+                                        placeholder="HH:MM:SS"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Status</Label>
+                                    <select 
+                                        value={editingRecord.status}
+                                        onChange={(e) => setEditingRecord({...editingRecord, status: e.target.value as any})}
+                                        className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                    >
+                                        <option value="present">Present</option>
+                                        <option value="late">Late</option>
+                                        <option value="absent">Absent</option>
+                                        <option value="half_day">Half Day</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setEditingRecord(null)}>Cancel</Button>
+                            <Button onClick={() => {
+                                if (editingRecord) {
+                                    updateAttendance.mutate({ id: editingRecord.id, data: editingRecord });
+                                    setEditingRecord(null);
+                                    MySwal.fire('Updated', 'Record adjusted successfully.', 'success');
+                                }
+                            }}>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Correction
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
             <style>{`
                 @media print {
