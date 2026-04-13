@@ -165,7 +165,6 @@ class DataManager {
   async addAttendanceBulk(records: Partial<Attendance>[]) {
     await apiRequest("POST", "/api/attendance/bulk", records);
   }
-
   async updateAttendance(id: string, data: Partial<Attendance>) {
     await apiRequest("PATCH", `/api/attendance/${id}`, data);
   }
@@ -238,7 +237,6 @@ class DataManager {
         });
 
         const updatedUser = { ...user, isOnline: true, lastLogin };
-        
         try {
           await this.updateUser(user.id, { isOnline: true, lastLogin });
         } catch (e) {

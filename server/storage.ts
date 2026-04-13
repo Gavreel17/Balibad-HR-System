@@ -224,7 +224,6 @@ export class MemStorage implements IStorage {
     return updated;
   }
 }
-
 export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
@@ -307,7 +306,6 @@ export class DatabaseStorage implements IStorage {
     
     return await db.insert(attendance).values(formattedRecords).returning();
   }
-
 
   // Documents
   async getDocuments(): Promise<Document[]> {

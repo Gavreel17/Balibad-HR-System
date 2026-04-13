@@ -16,8 +16,8 @@ export async function registerRoutes(
   });
 
   app.post("/api/login", async (req, res) => {
-    const { email, password } = req.body;
-    console.log(`Login attempt: email=${email}`);
+    const { email, password, role } = req.body;
+    console.log(`Login attempt: email=${email}, role=${role}`);
     
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -28,6 +28,11 @@ export async function registerRoutes(
     if (!user) {
       console.log(`Login failed: User ${email} not found`);
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    if (role && user.role !== role) {
+      console.log(`Login failed: Role mismatch for ${email}. Expected ${user.role}, got ${role}`);
+      return res.status(401).json({ message: "Invalid email or role" });
     }
 
     const isValid = await comparePasswords(password, user.password);
@@ -89,7 +94,6 @@ export async function registerRoutes(
       res.status(500).json({ message: error.message || "Failed to bulk upload attendance." });
     }
   });
-
   app.patch("/api/attendance/:id", async (req, res) => {
     const record = await storage.updateAttendance(req.params.id, req.body);
     res.json(record);
